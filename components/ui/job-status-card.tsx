@@ -1,50 +1,26 @@
-'use client';
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ProgressTracker } from '@/components/ui/progress-tracker';
+import { cn } from '@/lib/utils';
 import { 
-  Calendar,
-  Clock,
+  FileText, 
+  Palette, 
+  Image, 
   Eye,
   Download,
-  Trash2,
   RefreshCw,
-  ExternalLink,
-  Image as ImageIcon,
-  FileText,
-  Palette,
-  Wand2,
-  Book
+  Trash2,
+  Calendar,
+  Clock,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils/helpers';
-import { ProgressTracker, JobStatus } from './progress-tracker';
-import { cn } from '@/lib/utils';
 
-interface JobStatusCardProps {
-  jobId: string;
-  jobType: 'storybook' | 'auto-story' | 'scenes' | 'cartoonize' | 'image-generation';
-  status: JobStatus;
-  progress: number;
-  currentStep?: string;
-  currentPhase?: string;
-  createdAt: string;
-  updatedAt: string;
-  estimatedTimeRemaining?: string;
-  error?: string;
-  result?: any;
-  onView?: () => void;
-  onDownload?: () => void;
-  onDelete?: () => void;
-  onRetry?: () => void;
-  onCancel?: () => void;
-  className?: string;
-}
-
-const jobTypeConfig = {
+// Define job type icons and styles
+const JOB_TYPES = {
   storybook: {
-    icon: Book,
+    icon: FileText,
     label: 'Storybook',
     description: 'Complete illustrated storybook',
     color: 'text-blue-600',
@@ -72,13 +48,33 @@ const jobTypeConfig = {
     bgColor: 'bg-orange-50',
   },
   'image-generation': {
-    icon: ImageIcon,
+    icon: Image,
     label: 'Image Generation',
     description: 'Custom scene illustration',
     color: 'text-pink-600',
     bgColor: 'bg-pink-50',
   },
 };
+
+interface JobStatusCardProps {
+  jobId: string;
+  jobType: keyof typeof JOB_TYPES;
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  progress: number;
+  currentStep?: string;
+  currentPhase?: string;
+  createdAt: string;
+  updatedAt: string;
+  estimatedTimeRemaining?: string;
+  error?: string;
+  result?: any;
+  onView?: () => void;
+  onDownload?: () => void;
+  onDelete?: () => void;
+  onRetry?: () => void;
+  onCancel?: () => void;
+  className?: string;
+}
 
 export function JobStatusCard({
   jobId,
@@ -99,65 +95,63 @@ export function JobStatusCard({
   onCancel,
   className,
 }: JobStatusCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const config = jobTypeConfig[jobType];
-  const Icon = config.icon;
-
+  const [showDetails, setShowDetails] = useState(false);
+  
+  const jobTypeInfo = JOB_TYPES[jobType];
+  const TypeIcon = jobTypeInfo.icon;
+  
   const isActive = status === 'pending' || status === 'processing';
   const isCompleted = status === 'completed';
   const isFailed = status === 'failed';
 
   return (
-    <Card className={cn(
-      'transition-all duration-200 hover:shadow-md',
-      isActive && 'ring-2 ring-blue-200 bg-blue-50/30',
-      className
-    )}>
+    <Card 
+      className={cn(
+        "transition-all duration-200 hover:shadow-md",
+        isActive && "ring-2 ring-blue-200 bg-blue-50/30",
+        className
+      )}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className={cn(
-              'p-2 rounded-lg',
-              config.bgColor
-            )}>
-              <Icon className={cn('h-5 w-5', config.color)} />
+            <div className={cn("p-2 rounded-lg", jobTypeInfo.bgColor)}>
+              <TypeIcon className={cn("h-5 w-5", jobTypeInfo.color)} />
             </div>
-            
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
-                {config.label}
+                {jobTypeInfo.label}
                 <Badge 
-                  variant={isCompleted ? 'default' : isFailed ? 'destructive' : 'secondary'}
+                  variant={
+                    isCompleted ? "default" : 
+                    isFailed ? "destructive" : 
+                    "secondary"
+                  }
                   className="text-xs"
                 >
                   {status}
                 </Badge>
               </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {config.description}
-              </p>
+              <p className="text-sm text-muted-foreground">{jobTypeInfo.description}</p>
             </div>
           </div>
-
+          
           <div className="flex items-center gap-1">
             {isCompleted && onView && (
               <Button variant="ghost" size="sm" onClick={onView}>
                 <Eye className="h-4 w-4" />
               </Button>
             )}
-            
             {isCompleted && onDownload && (
               <Button variant="ghost" size="sm" onClick={onDownload}>
                 <Download className="h-4 w-4" />
               </Button>
             )}
-            
             {isFailed && onRetry && (
               <Button variant="ghost" size="sm" onClick={onRetry}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
             )}
-            
             {onDelete && (
               <Button 
                 variant="ghost" 
@@ -171,9 +165,8 @@ export function JobStatusCard({
           </div>
         </div>
       </CardHeader>
-
+      
       <CardContent className="space-y-4">
-        {/* Progress Tracker */}
         <ProgressTracker
           jobId={jobId}
           jobType={jobType}
@@ -185,11 +178,10 @@ export function JobStatusCard({
           error={error}
           onCancel={isActive ? onCancel : undefined}
           onRetry={isFailed ? onRetry : undefined}
-          compact={!isExpanded}
-          showDetails={isExpanded}
+          compact={!showDetails}
+          showDetails={showDetails}
         />
-
-        {/* Job Details */}
+        
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1">
@@ -204,37 +196,30 @@ export function JobStatusCard({
               </div>
             )}
           </div>
-
+          
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={() => setShowDetails(!showDetails)}
             className="text-xs"
           >
-            {isExpanded ? 'Less' : 'More'} Details
+            {showDetails ? "Less" : "More"} Details
           </Button>
         </div>
-
-        {/* Expanded Details */}
-        {isExpanded && (
+        
+        {showDetails && (
           <div className="space-y-3 pt-3 border-t">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="font-medium">Job ID:</span>
-                <p className="text-muted-foreground font-mono text-xs">
-                  {jobId}
-                </p>
+                <p className="text-muted-foreground font-mono text-xs">{jobId}</p>
               </div>
-              
               <div>
                 <span className="font-medium">Type:</span>
-                <p className="text-muted-foreground">
-                  {config.label}
-                </p>
+                <p className="text-muted-foreground">{jobTypeInfo.label}</p>
               </div>
             </div>
-
-            {/* Result Information */}
+            
             {isCompleted && result && (
               <div className="space-y-2">
                 <span className="font-medium text-sm">Results:</span>
@@ -250,7 +235,7 @@ export function JobStatusCard({
                 
                 {result.url && (
                   <div className="flex items-center gap-2">
-                    <ImageIcon className="h-3 w-3 text-muted-foreground" />
+                    <Image className="h-3 w-3 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">
                       Image generated
                     </span>
@@ -276,19 +261,26 @@ export function JobStatusCard({
                 )}
               </div>
             )}
-
-            {/* Action Buttons */}
+            
             {isCompleted && (
               <div className="flex gap-2 pt-2">
                 {onView && (
-                  <Button variant="outline" size="sm" onClick={onView}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onView}
+                  >
                     <Eye className="h-4 w-4 mr-1" />
                     View Result
                   </Button>
                 )}
                 
                 {onDownload && (
-                  <Button variant="outline" size="sm" onClick={onDownload}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onDownload}
+                  >
                     <Download className="h-4 w-4 mr-1" />
                     Download
                   </Button>
