@@ -1,21 +1,30 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Dependencies
+# dependencies
 /node_modules
 /.pnp
 .pnp.js
 
-# Testing
+# testing
 /coverage
 
-# Next.js - CRITICAL FOR YOUR ISSUE
+# next.js
 /.next/
 /out/
 
-# Production
+# production
 /build
 
-# Environment variables
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
 .env
 .env*.local
 .env.local
@@ -24,10 +33,10 @@
 .env.production.local
 .env.production
 
-# Vercel
+# vercel
 .vercel
 
-# TypeScript
+# typescript
 *.tsbuildinfo
 next-env.d.ts
 
@@ -36,15 +45,11 @@ next-env.d.ts
 .idea/
 
 # OS
-.DS_Store
 Thumbs.db
 
 # Logs
 logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # Runtime data
 pids
@@ -82,17 +87,17 @@ node_modules/
 # Yarn Integrity file
 .yarn-integrity
 
-# Parcel-bundler cache (https://parceljs.org/)
+# parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
 
-# Next.js build output (additional format)
+# next.js build output
 .next
 
-# Nuxt.js build output
+# nuxt.js build output
 .nuxt
 
-# Vuepress build output
+# vuepress build output
 .vuepress/dist
 
 # Serverless directories
@@ -109,6 +114,3 @@ node_modules/
 
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
-
-# Bolt-specific (add these for Bolt compatibility)
-.bolt/config
