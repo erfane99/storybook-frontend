@@ -9,206 +9,189 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
-      profiles: {
+      admin_users: {
         Row: {
-          id: string
-          email: string
-          full_name: string | null
-          avatar_url: string | null
-          onboarding_step: 'not_started' | 'profile_completed' | 'story_created' | 'paid'
-          user_type: 'user' | 'admin'
           created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id: string
-          email: string
-          full_name?: string | null
-          avatar_url?: string | null
-          onboarding_step?: 'not_started' | 'profile_completed' | 'story_created' | 'paid'
-          user_type?: 'user' | 'admin'
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          email?: string
-          full_name?: string | null
-          avatar_url?: string | null
-          onboarding_step?: 'not_started' | 'profile_completed' | 'story_created' | 'paid'
-          user_type?: 'user' | 'admin'
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      storybook_entries: {
-        Row: {
-          id: string
-          title: string
-          story: string
-          pages: Json
-          audience: 'children' | 'young_adults' | 'adults'
-          character_description: string | null
-          is_paid: boolean
-          user_id: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          title: string
-          story: string
-          pages: Json
-          audience: 'children' | 'young_adults' | 'adults'
-          character_description?: string | null
-          is_paid?: boolean
-          user_id?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          title?: string
-          story?: string
-          pages?: Json
-          audience?: 'children' | 'young_adults' | 'adults'
-          character_description?: string | null
-          is_paid?: boolean
-          user_id?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      print_requests: {
-        Row: {
-          id: string
+          role: string
           user_id: string
-          storybook_id: string
-          status: 'pending' | 'approved' | 'shipped' | 'rejected'
-          notes: string | null
-          created_at: string
-          updated_at: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          storybook_id: string
-          status?: 'pending' | 'approved' | 'shipped' | 'rejected'
-          notes?: string | null
           created_at?: string
-          updated_at?: string
+          role?: string
+          user_id: string
         }
         Update: {
-          id?: string
+          created_at?: string
+          role?: string
           user_id?: string
-          storybook_id?: string
-          status?: 'pending' | 'approved' | 'shipped' | 'rejected'
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
         }
-      }
-      cartoon_images: {
-        Row: {
-          id: string
-          original_url: string
-          generated_url: string
-          user_id: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          original_url: string
-          generated_url: string
-          user_id?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          original_url?: string
-          generated_url?: string
-          user_id?: string | null
-          created_at?: string
-        }
-      }
-      users: {
-        Row: {
-          id: string
-          email: string
-          user_type: 'user' | 'admin'
-          created_at: string
-        }
-        Insert: {
-          id: string
-          email: string
-          user_type?: 'user' | 'admin'
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          email?: string
-          user_type?: 'user' | 'admin'
-          created_at?: string
-        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_users_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       stories: {
         Row: {
-          id: string
-          title: string
-          raw_text: string
-          user_id: string
           created_at: string
+          id: string
+          raw_text: string
+          status: string
+          title: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          title: string
-          raw_text: string
-          user_id: string
           created_at?: string
+          id?: string
+          raw_text: string
+          status?: string
+          title: string
+          user_id: string
         }
         Update: {
-          id?: string
-          title?: string
-          raw_text?: string
-          user_id?: string
           created_at?: string
+          id?: string
+          raw_text?: string
+          status?: string
+          title?: string
+          user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "stories_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       story_scenes: {
         Row: {
+          created_at: string
+          generated_image_url: string | null
           id: string
-          story_id: string
           scene_number: number
           scene_text: string
-          generated_image_url: string | null
-          image_prompt: string | null
-          created_at: string
+          story_id: string
+        }
+        Insert: {
+          created_at?: string
+          generated_image_url?: string | null
+          id?: string
+          scene_number: number
+          scene_text: string
+          story_id: string
+        }
+        Update: {
+          created_at?: string
+          generated_image_url?: string | null
+          id?: string
+          scene_number?: number
+          scene_text?: string
+          story_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_scenes_story_id_fkey"
+            columns: ["story_id"]
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      system_stats: {
+        Row: {
+          id: string
+          images_generated: number | null
+          new_users: number | null
+          stat_date: string
+          stories_created: number | null
+          updated_at: string
         }
         Insert: {
           id?: string
-          story_id: string
-          scene_number: number
-          scene_text: string
-          generated_image_url?: string | null
-          image_prompt?: string | null
-          created_at?: string
+          images_generated?: number | null
+          new_users?: number | null
+          stat_date?: string
+          stories_created?: number | null
+          updated_at?: string
         }
         Update: {
           id?: string
-          story_id?: string
-          scene_number?: number
-          scene_text?: string
-          generated_image_url?: string | null
-          image_prompt?: string | null
-          created_at?: string
+          images_generated?: number | null
+          new_users?: number | null
+          stat_date?: string
+          stories_created?: number | null
+          updated_at?: string
         }
+      }
+      user_images: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_images_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "users_id_fkey"
+            columns: ["id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: {
+        Args: {
+          uid: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
