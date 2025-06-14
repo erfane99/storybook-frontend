@@ -14,6 +14,8 @@ import {
   Trash2,
   Calendar,
   Clock,
+  ExternalLink,
+  Wand2
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils/helpers';
 
