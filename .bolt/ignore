@@ -1,0 +1,4 @@
+components/ui/*
+hooks/use-toast.ts
+.next/
+node_modules/
