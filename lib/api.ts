@@ -27,8 +27,9 @@ export interface OTPResponse {
 }
 
 export interface UploadImageResponse {
-  url: string;
-  path: string;
+  secure_url: string;
+  url?: string;
+  path?: string;
 }
 
 // Helper function to validate required parameters
