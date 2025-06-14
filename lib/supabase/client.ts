@@ -1,13 +1,14 @@
-import { createWebClient } from './web';
-import type { Database } from './database.types';
+import { createBrowserClient } from '@supabase/ssr'
+import type { Database } from './database.types'
 
-let client: ReturnType<typeof createWebClient> | null = null;
+let supabaseClient: ReturnType<typeof createBrowserClient<Database>> | null = null
 
-export const getClientSupabase = () => {
-  if (!client) {
-    client = createWebClient();
+export function getClientSupabase() {
+  if (!supabaseClient) {
+    supabaseClient = createBrowserClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
   }
-  return client;
-};
-
-export type { Database };
+  return supabaseClient
+}
