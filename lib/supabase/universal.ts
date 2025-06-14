@@ -1,9 +1,13 @@
-import { createBrowserClient } from '@supabase/supabase-js'
-import type { Database } from './database.types'
+import { getClientSupabase } from './client';
+import type { Database } from './database.types';
 
-export async function getUniversalSupabase() {
-  return createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-}
+let universalClient: ReturnType<typeof getClientSupabase> | null = null;
+
+export const getUniversalSupabase = async () => {
+  if (!universalClient) {
+    universalClient = getClientSupabase();
+  }
+  return universalClient;
+};
+
+export type { Database };
