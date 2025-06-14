@@ -1,14 +1,2 @@
-.next/**
-node_modules/**
-.git/**
-*.log
-.env*
-package-lock.json
-yarn.lock
-.vercel
-coverage/
-.nyc_output
-.cache
-.parcel-cache
 components/ui/*
 hooks/use-toast.ts
