@@ -17,6 +17,11 @@ export interface ImageDescribeResponse {
   characterDescription: string;
 }
 
+export interface CartoonizeJobResponse {
+  jobId: string;
+  pollingUrl: string;
+}
+
 export interface CartoonizeImageResponse {
   url: string;
 }
@@ -30,6 +35,19 @@ export interface UploadImageResponse {
   secure_url: string;
   url?: string;
   path?: string;
+}
+
+export interface JobStatusResponse {
+  jobId: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  progress: number;
+  currentStep?: string;
+  currentPhase?: string;
+  createdAt: string;
+  updatedAt: string;
+  estimatedTimeRemaining?: string;
+  error?: string;
+  result?: any;
 }
 
 // Helper function to validate required parameters
@@ -78,6 +96,69 @@ export async function apiRequest<T = any>(
   }
 }
 
+// Job polling utility
+export async function pollJobStatus(
+  jobId: string,
+  pollingUrl: string,
+  onProgress?: (progress: number) => void,
+  onStatusChange?: (status: string) => void
+): Promise<any> {
+  const maxAttempts = 180; // 3 minutes with 1-second intervals
+  let attempts = 0;
+
+  return new Promise((resolve, reject) => {
+    const poll = async () => {
+      try {
+        attempts++;
+        
+        const response = await fetch(pollingUrl, {
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Polling failed: ${response.status}`);
+        }
+
+        const jobData: JobStatusResponse = await response.json();
+
+        // Call progress callback
+        if (onProgress && typeof jobData.progress === 'number') {
+          onProgress(jobData.progress);
+        }
+
+        // Call status change callback
+        if (onStatusChange) {
+          onStatusChange(jobData.status);
+        }
+
+        if (jobData.status === 'completed') {
+          resolve(jobData.result);
+        } else if (jobData.status === 'failed') {
+          reject(new Error(jobData.error || 'Job failed'));
+        } else if (jobData.status === 'cancelled') {
+          reject(new Error('Job was cancelled'));
+        } else if (attempts >= maxAttempts) {
+          reject(new Error('Job polling timeout'));
+        } else {
+          // Continue polling
+          setTimeout(poll, 1000);
+        }
+      } catch (error) {
+        if (attempts >= maxAttempts) {
+          reject(error);
+        } else {
+          // Retry after a short delay
+          setTimeout(poll, 2000);
+        }
+      }
+    };
+
+    poll();
+  });
+}
+
 // Specific API methods with proper TypeScript and validation
 export const api = {
   // Auth endpoints
@@ -117,16 +198,41 @@ export const api = {
     });
   },
 
-  cartoonizeImage: (
+  // Updated cartoonize methods to use job-based system
+  startCartoonizeJob: (
     prompt: string | null, 
     style: string | null, 
     imageUrl: string | null
-  ): Promise<CartoonizeImageResponse> => {
-    validateRequired({ prompt, style, imageUrl }, ['prompt', 'style', 'imageUrl']);
-    return apiRequest('api/image/cartoonize', {
+  ): Promise<CartoonizeJobResponse> => {
+    validateRequired({ prompt, style, imageUrl }, ['prompt', style', 'imageUrl']);
+    return apiRequest('api/jobs/cartoonize/start', {
       method: 'POST',
       body: JSON.stringify({ prompt, style, imageUrl }),
     });
+  },
+
+  getCartoonizeJobStatus: (jobId: string | null): Promise<JobStatusResponse> => {
+    validateRequired({ jobId }, ['jobId']);
+    return apiRequest(`api/jobs/cartoonize/status/${jobId}`);
+  },
+
+  // Convenience method that combines start + polling
+  cartoonizeImage: async (
+    prompt: string | null, 
+    style: string | null, 
+    imageUrl: string | null,
+    onProgress?: (progress: number) => void,
+    onStatusChange?: (status: string) => void
+  ): Promise<CartoonizeImageResponse> => {
+    validateRequired({ prompt, style, imageUrl }, ['prompt', 'style', 'imageUrl']);
+    
+    // Start the job
+    const { jobId, pollingUrl } = await api.startCartoonizeJob(prompt, style, imageUrl);
+    
+    // Poll for completion
+    const result = await pollJobStatus(jobId, pollingUrl, onProgress, onStatusChange);
+    
+    return result;
   },
 
   // Story endpoints

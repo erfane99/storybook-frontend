@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { RefreshCw, Loader2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { RefreshCw, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 
@@ -24,6 +25,9 @@ export function Step4_ConfirmImage({
   const [retryCount, setRetryCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [currentStatus, setCurrentStatus] = useState<string>('');
+  const [jobId, setJobId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -35,22 +39,57 @@ export function Step4_ConfirmImage({
   const generateCartoonImage = async () => {
     setIsGenerating(true);
     setError(null);
+    setProgress(0);
+    setCurrentStatus('Starting...');
 
     try {
       let finalPrompt = prompt;
 
       // Get image description if not already available
       if (!finalPrompt) {
+        setCurrentStatus('Analyzing image...');
+        setProgress(10);
+        
         const { characterDescription } = await api.describeImage(imageUrl);
         finalPrompt = characterDescription;
         setPrompt(characterDescription);
+        
+        setProgress(20);
+        setCurrentStatus('Description complete');
       }
 
-      // Generate cartoon image
-      const { url } = await api.cartoonizeImage(finalPrompt, cartoonStyle, imageUrl);
-      updateFormData({ cartoonizedUrl: url });
+      // Start cartoonize job
+      setCurrentStatus('Starting cartoonization...');
+      setProgress(25);
+
+      const result = await api.cartoonizeImage(
+        finalPrompt,
+        cartoonStyle,
+        imageUrl,
+        (jobProgress) => {
+          // Update progress (scale from 25-95 to leave room for completion)
+          const scaledProgress = 25 + (jobProgress * 0.7);
+          setProgress(Math.min(scaledProgress, 95));
+        },
+        (status) => {
+          setCurrentStatus(getStatusMessage(status));
+        }
+      );
+
+      setProgress(100);
+      setCurrentStatus('Complete!');
+      updateFormData({ cartoonizedUrl: result.url });
+
+      toast({
+        title: 'Success',
+        description: 'Cartoon image generated successfully!',
+      });
+
     } catch (error: any) {
       setError(error.message);
+      setProgress(0);
+      setCurrentStatus('Failed');
+      
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -61,10 +100,40 @@ export function Step4_ConfirmImage({
     }
   };
 
+  const getStatusMessage = (status: string): string => {
+    switch (status) {
+      case 'pending':
+        return 'Queued for processing...';
+      case 'processing':
+        return 'Creating cartoon image...';
+      case 'completed':
+        return 'Finalizing...';
+      case 'failed':
+        return 'Generation failed';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return 'Processing...';
+    }
+  };
+
   const handleRetry = () => {
     if (retryCount >= 3) return;
     setRetryCount(prev => prev + 1);
     generateCartoonImage();
+  };
+
+  const getProgressColor = () => {
+    if (error) return 'bg-destructive';
+    if (progress === 100) return 'bg-green-500';
+    return 'bg-primary';
+  };
+
+  const getProgressIcon = () => {
+    if (error) return <AlertCircle className="h-4 w-4 text-destructive" />;
+    if (progress === 100) return <CheckCircle className="h-4 w-4 text-green-500" />;
+    if (isGenerating) return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
+    return null;
   };
 
   return (
@@ -94,8 +163,27 @@ export function Step4_ConfirmImage({
           <CardContent className="p-4">
             <div className="aspect-square relative rounded-lg overflow-hidden">
               {isGenerating ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-                  <Loader2 className="h-8 w-8 animate-spin" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm">
+                  <div className="w-full max-w-xs space-y-4">
+                    <div className="flex items-center justify-center">
+                      {getProgressIcon()}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className="font-medium">{Math.round(progress)}%</span>
+                      </div>
+                      <Progress 
+                        value={progress} 
+                        className="h-2"
+                      />
+                    </div>
+                    
+                    <p className="text-sm text-center text-muted-foreground">
+                      {currentStatus}
+                    </p>
+                  </div>
                 </div>
               ) : cartoonizedUrl ? (
                 <img
@@ -109,10 +197,22 @@ export function Step4_ConfirmImage({
                 </div>
               )}
             </div>
-            <p className="text-center text-sm mt-2 text-muted-foreground">Cartoon</p>
+            <p className="text-center text-sm mt-2 text-muted-foreground">
+              Cartoon {isGenerating && `(${Math.round(progress)}%)`}
+            </p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Character description display */}
+      {prompt && (
+        <Card className="bg-muted/50">
+          <CardContent className="p-4">
+            <h4 className="font-medium mb-2">Character Description</h4>
+            <p className="text-sm text-muted-foreground">{prompt}</p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex justify-between items-center pt-4">
         <Button
@@ -129,13 +229,16 @@ export function Step4_ConfirmImage({
             </span>
           )}
         </Button>
-      </div>
 
-      {error && (
-        <p className="text-sm text-destructive text-center">
-          {error}
-        </p>
-      )}
+        {error && (
+          <div className="text-right">
+            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Try regenerating or check your connection
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
