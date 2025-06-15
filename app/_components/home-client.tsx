@@ -28,7 +28,6 @@ export default function HomeClient() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-rose-50 via-purple-50 to-blue-50 dark:from-rose-950 dark:via-purple-950 dark:to-blue-950">
-      <div>TEST CONTENT</div>
       {/* Hero Section */}
       <section className="relative pt-32 pb-16 overflow-hidden">
         <div className="container mx-auto px-4">
@@ -78,7 +77,10 @@ export default function HomeClient() {
                 <Button
                   variant="outline"
                   size="lg"
-                  onClick={() => router.push('#how-it-works')}
+                  onClick={() => {
+                    const element = document.getElementById('how-it-works');
+                    element?.scrollIntoView({ behavior: 'smooth' });
+                  }}
                   className="text-lg px-8"
                 >
                   See How It Works
@@ -111,7 +113,9 @@ export default function HomeClient() {
       </section>
 
       {/* How It Works Section */}
-      <HowItWorksSection />
+      <div id="how-it-works">
+        <HowItWorksSection />
+      </div>
 
       {/* Testimonials Section */}
       <section className="py-24">

@@ -36,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
+  const [initializationError, setInitializationError] = useState<string | null>(null);
   const { progress, clearProgress } = useStoryProgress();
   const { toast } = useToast();
   const router = useRouter();
@@ -43,23 +44,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initSupabase = async () => {
       try {
+        console.log('🔐 Initializing Supabase client...');
         const { getUniversalSupabase } = await import('@/lib/supabase/universal');
         const client = await getUniversalSupabase();
         setSupabase(client);
 
-        const { data: { session } } = await client.auth.getSession();
-        if (session?.user) {
+        console.log('🔐 Getting initial session...');
+        const { data: { session }, error: sessionError } = await client.auth.getSession();
+        
+        if (sessionError) {
+          console.error('🔐 Session error:', sessionError);
+          setInitializationError(sessionError.message);
+        } else if (session?.user) {
+          console.log('🔐 Found existing session for user:', session.user.id);
           setUser(session.user);
           await refreshProfile(client, session.user.id);
-        }
-        setIsLoading(false);
-
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('🔐 Loaded session:', session);
+        } else {
+          console.log('🔐 No existing session found');
         }
       } catch (error) {
-        console.error('Failed to initialize Supabase:', error);
+        console.error('🔐 Failed to initialize Supabase:', error);
+        setInitializationError(error instanceof Error ? error.message : 'Unknown error');
+      } finally {
         setIsLoading(false);
+        console.log('🔐 Auth initialization complete');
       }
     };
 
@@ -67,9 +75,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshProfile = async (client = supabase, userId = user?.id): Promise<void> => {
-    if (!client || !userId) return;
+    if (!client || !userId) {
+      console.log('🔐 Skipping profile refresh - missing client or userId');
+      return;
+    }
 
     try {
+      console.log('👤 Refreshing profile for user:', userId);
       const { data: profileData, error: profileError } = await client
         .from('profiles')
         .select('*')
@@ -77,23 +89,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (profileError && profileError.code !== 'PGRST116') {
+        console.error('👤 Profile fetch error:', profileError);
         throw profileError;
       }
 
       if (profileData) {
+        console.log('👤 Profile loaded successfully');
         setProfile(profileData as Profile);
-        
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('👤 Profile:', profileData);
-        }
+      } else {
+        console.log('👤 No profile found for user');
+        setProfile(null);
       }
     } catch (error) {
-      console.error('Error refreshing profile:', error);
+      console.error('👤 Error refreshing profile:', error);
+      // Don't throw - allow app to continue without profile
     }
   };
 
   const createProfileIfNotExists = async (client: SupabaseClient<Database>, user: User): Promise<void> => {
     try {
+      console.log('👤 Checking if profile exists for user:', user.id);
+      
       // Check if profile already exists
       const { data: existingProfile, error: profileCheckError } = await client
         .from('profiles')
@@ -103,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // If profile doesn't exist (PGRST116 = no rows returned), create it
       if (profileCheckError && profileCheckError.code === 'PGRST116') {
+        console.log('👤 Creating new profile for user:', user.id);
         const currentTime = new Date().toISOString();
         
         const { error: insertError } = await client
@@ -119,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single();
 
         if (insertError) {
-          console.error('Error creating user profile:', insertError);
+          console.error('👤 Error creating user profile:', insertError);
           if (toast) {
             toast({
               variant: 'destructive',
@@ -128,13 +145,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
           }
         } else {
-          if (process.env.NODE_ENV !== 'production') {
-            console.log('✅ User profile created successfully for Google sign-in');
-          }
+          console.log('✅ User profile created successfully');
         }
       } else if (profileCheckError) {
-        // Some other error occurred
-        console.error('Error checking user profile:', profileCheckError);
+        console.error('👤 Error checking user profile:', profileCheckError);
         if (toast) {
           toast({
             variant: 'destructive',
@@ -143,22 +157,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
         }
       } else {
-        // Profile already exists
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('✅ User profile already exists');
-        }
+        console.log('✅ User profile already exists');
       }
     } catch (error) {
-      console.error('Error in createProfileIfNotExists:', error);
+      console.error('👤 Error in createProfileIfNotExists:', error);
     }
   };
 
   useEffect(() => {
     if (!supabase) return;
 
+    console.log('🔐 Setting up auth state listener...');
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔐 Auth state changed:', event, session?.user?.id);
+      
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
         
@@ -168,23 +182,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Then refresh the profile data
         await refreshProfile(supabase, session.user.id);
       } else if (event === 'SIGNED_OUT') {
+        console.log('🔐 User signed out');
         setUser(null);
         setProfile(null);
       }
     });
 
-    const refreshInterval = setInterval(() => refreshProfile(), PROFILE_REFRESH_INTERVAL);
+    // Set up profile refresh interval
+    const refreshInterval = setInterval(() => {
+      if (user) {
+        console.log('🔄 Periodic profile refresh...');
+        refreshProfile();
+      }
+    }, PROFILE_REFRESH_INTERVAL);
 
     return () => {
+      console.log('🔐 Cleaning up auth listeners...');
       subscription.unsubscribe();
       clearInterval(refreshInterval);
     };
-  }, [supabase]);
+  }, [supabase, user]);
 
   const updateOnboardingStep = async (step: Profile['onboarding_step']): Promise<void> => {
-    if (!user?.id || !supabase) return;
+    if (!user?.id || !supabase) {
+      console.error('👤 Cannot update onboarding step - missing user or supabase');
+      return;
+    }
 
     try {
+      console.log('👤 Updating onboarding step to:', step);
       const { error } = await supabase
         .from('profiles')
         .update({ onboarding_step: step })
@@ -192,7 +218,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
       await refreshProfile();
+      console.log('✅ Onboarding step updated successfully');
     } catch (error: unknown) {
+      console.error('👤 Failed to update onboarding step:', error);
       if (toast) {
         toast({
           variant: 'destructive',
@@ -205,9 +233,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const saveAnonymousProgress = async (): Promise<void> => {
-    if (!user || !progress || !supabase) return;
+    if (!user || !progress || !supabase) {
+      console.log('📝 Skipping anonymous progress save - missing requirements');
+      return;
+    }
 
     try {
+      console.log('📝 Saving anonymous progress...');
       const { data: storyData, error: storyError } = await supabase
         .from('stories')
         .insert({
@@ -238,6 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await updateOnboardingStep('story_created');
       clearProgress();
 
+      console.log('✅ Anonymous progress saved successfully');
       if (toast) {
         toast({
           title: 'Success',
@@ -245,6 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
     } catch (error: unknown) {
+      console.error('📝 Failed to save story progress:', error);
       if (toast) {
         toast({
           variant: 'destructive',
@@ -256,14 +290,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async (): Promise<void> => {
-    if (!supabase) return;
+    if (!supabase) {
+      console.error('🔐 Cannot sign out - no supabase client');
+      return;
+    }
+    
     try {
+      console.log('🔐 Signing out user...');
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
+      console.log('✅ Sign out successful');
       if (router) {
         router.replace('/');
       }
     } catch (error: unknown) {
+      console.error('🔐 Sign out failed:', error);
       if (toast) {
         toast({
           variant: 'destructive',
@@ -275,16 +317,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Show error state if initialization failed
+  if (initializationError) {
+    console.error('🔐 Auth initialization failed:', initializationError);
+    // Still provide the context but with error state
+  }
+
+  const contextValue: AuthContextType = {
+    user,
+    profile,
+    isLoading,
+    signOut,
+    saveAnonymousProgress,
+    updateOnboardingStep,
+    refreshProfile: () => refreshProfile(),
+  };
+
   return (
-    <AuthContext.Provider value={{
-      user,
-      profile,
-      isLoading,
-      signOut,
-      saveAnonymousProgress,
-      updateOnboardingStep,
-      refreshProfile: () => refreshProfile(),
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
