@@ -88,18 +88,29 @@ export async function apiRequest<T = any>(
   console.log('🌐 apiRequest final URL verification:', url);
   console.log('🌐 apiRequest URL domain check:', new URL(url).hostname);
   
-  const defaultOptions: RequestInit = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    ...options,
-  };
+  // Create Headers object for proper header management
+  const headers = new Headers();
+  
+  // Set default Content-Type
+  headers.set('Content-Type', 'application/json');
+  
+  // Add any additional headers from options
+  if (options.headers) {
+    const optionsHeaders = new Headers(options.headers);
+    optionsHeaders.forEach((value, key) => {
+      headers.set(key, value);
+    });
+  }
 
   // Remove Content-Type for FormData
   if (options.body instanceof FormData) {
-    delete defaultOptions.headers!['Content-Type'];
+    headers.delete('Content-Type');
   }
+
+  const defaultOptions: RequestInit = {
+    headers,
+    ...options,
+  };
 
   try {
     console.log(`🌐 Making API request to: ${url}`); // Debug logging
