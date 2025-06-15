@@ -40,10 +40,10 @@ const nextConfig = {
     NEXT_PUBLIC_RAILWAY_BACKEND_URL: 'https://storybook-backend-production-cb71.up.railway.app',
   },
   
-  // Remove Next.js rewrites to let Netlify handle routing
-  // Netlify proxy redirects are more reliable for this use case
+  // REMOVED: Next.js rewrites to avoid conflicts with Netlify proxy
+  // Netlify redirects are handling API routing instead
   
-  // Add headers for better API handling
+  // Add headers for debugging
   async headers() {
     return [
       {
@@ -54,8 +54,8 @@ const nextConfig = {
             value: 'no-cache, no-store, must-revalidate',
           },
           {
-            key: 'X-Proxy-Target',
-            value: 'Railway-Backend',
+            key: 'X-Debug-Proxy',
+            value: 'Netlify-To-Railway',
           },
         ],
       },

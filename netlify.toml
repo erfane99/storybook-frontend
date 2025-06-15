@@ -6,15 +6,19 @@
   NODE_VERSION = "18"
   NPM_VERSION = "9"
 
-# Netlify proxy configuration for API routing
+# Netlify proxy configuration - TOML format with proper syntax
 [[redirects]]
   from = "/api/*"
   to = "https://storybook-backend-production-cb71.up.railway.app/api/:splat"
   status = 200
   force = true
-  headers = {X-From = "Netlify"}
 
-# Specific API endpoint proxies
+[[redirects]]
+  from = "/api/health"
+  to = "https://storybook-backend-production-cb71.up.railway.app/api/health"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/api/image/*"
   to = "https://storybook-backend-production-cb71.up.railway.app/api/image/:splat"
@@ -33,7 +37,25 @@
   status = 200
   force = true
 
-# SPA fallback
+[[redirects]]
+  from = "/api/send-otp"
+  to = "https://storybook-backend-production-cb71.up.railway.app/api/send-otp"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/verify-otp"
+  to = "https://storybook-backend-production-cb71.up.railway.app/api/verify-otp"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/upload-image"
+  to = "https://storybook-backend-production-cb71.up.railway.app/api/upload-image"
+  status = 200
+  force = true
+
+# SPA fallback - must be last
 [[redirects]]
   from = "/*"
   to = "/index.html"
