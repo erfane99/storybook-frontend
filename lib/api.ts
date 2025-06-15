@@ -466,3 +466,11 @@ export const api = {
     });
   },
 };
+
+// Global API client for debugging - expose to window in development
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  (window as any).railwayAPI = api;
+  (window as any).buildApiUrl = buildApiUrl;
+  (window as any).apiRequest = apiRequest;
+  console.log('🔧 Railway API client exposed to window for debugging');
+}

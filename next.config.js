@@ -39,6 +39,28 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://storybook-backend-production-cb71.up.railway.app',
   },
+  // Ensure proper path alias resolution in production
+  webpack: (config, { isServer }) => {
+    // Add alias resolution for production builds
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': require('path').resolve(__dirname),
+    };
+    
+    return config;
+  },
+  // Disable API routes in frontend build
+  async rewrites() {
+    return {
+      beforeFiles: [
+        // Redirect any /api calls to Railway backend
+        {
+          source: '/api/:path*',
+          destination: 'https://storybook-backend-production-cb71.up.railway.app/api/:path*',
+        },
+      ],
+    };
+  },
 };
 
 module.exports = nextConfig;
