@@ -10,24 +10,9 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# API Proxy Configuration - Industry Standard for Netlify
+# API Proxy Configuration - Clean and Simple
 [[redirects]]
   from = "/api/*"
   to = "https://storybook-backend-production-cb71.up.railway.app/api/:splat"
   status = 200
   force = true
-  
-# Specific health check endpoint
-[[redirects]]
-  from = "/api/health"
-  to = "https://storybook-backend-production-cb71.up.railway.app/api/health"
-  status = 200
-  force = true
-
-# Handle CORS preflight requests
-[[redirects]]
-  from = "/api/*"
-  to = "https://storybook-backend-production-cb71.up.railway.app/api/:splat"
-  status = 200
-  force = true
-  headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET,POST,PUT,DELETE,OPTIONS", Access-Control-Allow-Headers = "Content-Type,Authorization"}
