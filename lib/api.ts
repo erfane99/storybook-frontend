@@ -59,11 +59,12 @@ function validateRequired(params: Record<string, any>, requiredFields: string[])
   }
 }
 
-// Helper function to build API URLs
+// Helper function to build API URLs - FIXED to always use Railway backend
 export function buildApiUrl(endpoint: string): string {
   // Remove leading slash if present to avoid double slashes
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
-  return `${API_BASE_URL}/${cleanEndpoint}`;
+  // ALWAYS use Railway backend URL, never relative paths
+  return `https://storybook-backend-production-cb71.up.railway.app/${cleanEndpoint}`;
 }
 
 // Enhanced fetch wrapper with error handling
@@ -82,6 +83,7 @@ export async function apiRequest<T = any>(
   };
 
   try {
+    console.log(`🌐 API Request: ${url}`); // Debug logging
     const response = await fetch(url, defaultOptions);
     
     if (!response.ok) {
@@ -91,7 +93,7 @@ export async function apiRequest<T = any>(
 
     return await response.json();
   } catch (error) {
-    console.error(`API request failed for ${endpoint}:`, error);
+    console.error(`❌ API request failed for ${endpoint}:`, error);
     throw error;
   }
 }
@@ -111,7 +113,14 @@ export async function pollJobStatus(
       try {
         attempts++;
         
-        const response = await fetch(pollingUrl, {
+        // Ensure polling URL uses Railway backend
+        const fullPollingUrl = pollingUrl.startsWith('http') 
+          ? pollingUrl 
+          : buildApiUrl(pollingUrl);
+        
+        console.log(`🔄 Polling: ${fullPollingUrl}`); // Debug logging
+        
+        const response = await fetch(fullPollingUrl, {
           headers: {
             'Cache-Control': 'no-cache',
           },

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { buildApiUrl } from '@/lib/api';
 
 export interface JobData {
   jobId: string;
@@ -87,7 +88,14 @@ export function useJobPolling(
       // Create new abort controller for this request
       abortControllerRef.current = new AbortController();
 
-      const response = await fetch(pollingUrl, {
+      // Ensure polling URL uses Railway backend
+      const fullPollingUrl = pollingUrl.startsWith('http') 
+        ? pollingUrl 
+        : buildApiUrl(pollingUrl);
+
+      console.log(`🔄 Polling Railway backend: ${fullPollingUrl}`);
+
+      const response = await fetch(fullPollingUrl, {
         signal: abortControllerRef.current.signal,
         headers: {
           'Cache-Control': 'no-cache',
@@ -110,7 +118,7 @@ export function useJobPolling(
         return null; // Request was cancelled
       }
 
-      console.error('Job polling error:', err);
+      console.error('❌ Job polling error:', err);
       
       // Increment retry count
       setRetryCount(prev => prev + 1);
@@ -133,7 +141,7 @@ export function useJobPolling(
       return;
     }
 
-    console.log(`🔄 Starting job polling for: ${jobId}`);
+    console.log(`🔄 Starting job polling for: ${jobId} on Railway backend`);
     setIsPolling(true);
     setError(null);
 
@@ -234,8 +242,11 @@ export function useJobPolling(
     }
 
     try {
-      // This would need to be implemented in the backend
-      const response = await fetch(`/api/jobs/cancel/${jobId}`, {
+      // Use Railway backend for cancellation
+      const cancelUrl = buildApiUrl(`api/jobs/cancel/${jobId}`);
+      console.log(`🚫 Cancelling job on Railway backend: ${cancelUrl}`);
+      
+      const response = await fetch(cancelUrl, {
         method: 'POST',
       });
 
@@ -247,7 +258,7 @@ export function useJobPolling(
 
       return false;
     } catch (error) {
-      console.error('Failed to cancel job:', error);
+      console.error('❌ Failed to cancel job:', error);
       return false;
     }
   }, [jobId, data, stopPolling]);

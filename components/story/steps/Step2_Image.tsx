@@ -36,11 +36,12 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
     setIsLoading(true);
 
     try {
-      // Upload to backend
-      const formData = new FormData();
-      formData.append('image', file);
+      // Upload to Railway backend via API
+      const formDataToUpload = new FormData();
+      formDataToUpload.append('image', file);
 
-      const { secure_url } = await api.uploadImage(formData);
+      console.log('🖼️ Uploading image to Railway backend...');
+      const { secure_url } = await api.uploadImage(formDataToUpload);
 
       updateFormData({
         characterImage: file,
@@ -52,6 +53,7 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
         description: 'Image uploaded successfully',
       });
     } catch (error: any) {
+      console.error('❌ Image upload failed:', error);
       toast({
         variant: 'destructive',
         title: 'Error',

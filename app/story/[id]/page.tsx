@@ -62,7 +62,8 @@ export default function StoryResultPage() {
 
     setGeneratingImage(scene.id);
     try {
-      // Generate the image using the backend API
+      console.log('🎨 Generating cartoon image via Railway backend...');
+      // Generate the image using the Railway backend API
       const { url } = await api.generateCartoonImage(scene.image_prompt);
 
       // Update the scene with the new image URL
@@ -83,6 +84,7 @@ export default function StoryResultPage() {
         description: 'Image generated successfully!',
       });
     } catch (err: any) {
+      console.error('❌ Image generation failed:', err);
       toast({
         variant: 'destructive',
         title: 'Error',

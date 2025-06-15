@@ -86,21 +86,23 @@ export function JobDashboard({
   const { toast } = useToast();
   const supabase = getClientSupabase();
 
-  // Fetch jobs from API
+  // Fetch jobs from Railway backend API
   const fetchJobs = async () => {
     if (!user) return;
 
     try {
+      console.log('📊 Fetching jobs from Railway backend...');
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         throw new Error('No access token available');
       }
 
       const { jobs: data } = await api.getUserJobs(session.access_token);
+      console.log(`📊 Loaded ${data?.length || 0} jobs from Railway backend`);
       setJobs(data || []);
       setLastRefresh(new Date());
     } catch (error: any) {
-      console.error('Failed to fetch jobs:', error);
+      console.error('❌ Failed to fetch jobs from Railway backend:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -169,6 +171,7 @@ export function JobDashboard({
 
   const handleJobDelete = async (job: Job) => {
     try {
+      console.log(`🗑️ Deleting job ${job.jobId} via Railway backend...`);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         throw new Error('No access token available');
@@ -182,6 +185,7 @@ export function JobDashboard({
         description: 'Job deleted successfully',
       });
     } catch (error: any) {
+      console.error('❌ Failed to delete job:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -200,6 +204,7 @@ export function JobDashboard({
 
   const handleJobCancel = async (job: Job) => {
     try {
+      console.log(`🚫 Cancelling job ${job.jobId} via Railway backend...`);
       await api.cancelJob(job.jobId);
 
       // Update job status locally
@@ -214,6 +219,7 @@ export function JobDashboard({
         description: 'Job cancelled successfully',
       });
     } catch (error: any) {
+      console.error('❌ Failed to cancel job:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -340,7 +346,7 @@ export function JobDashboard({
         <Card>
           <CardContent className="py-8 text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading jobs...</p>
+            <p className="text-muted-foreground">Loading jobs from Railway backend...</p>
           </CardContent>
         </Card>
       ) : filteredJobs.length === 0 ? (

@@ -44,6 +44,8 @@ export function useCartoonizeJob(): UseCartoonizeJobReturn {
     style: string,
     imageUrl: string
   ) => {
+    console.log('🎨 Starting cartoonize job on Railway backend...');
+    
     setState(prev => ({
       ...prev,
       isLoading: true,
@@ -54,17 +56,20 @@ export function useCartoonizeJob(): UseCartoonizeJobReturn {
     }));
 
     try {
+      // Use Railway backend API for cartoonization
       const result = await api.cartoonizeImage(
         prompt,
         style,
         imageUrl,
         (progress) => {
+          console.log(`🎨 Cartoonize progress: ${progress}%`);
           setState(prev => ({
             ...prev,
             progress,
           }));
         },
         (status) => {
+          console.log(`🎨 Cartoonize status: ${status}`);
           setState(prev => ({
             ...prev,
             status,
@@ -72,6 +77,7 @@ export function useCartoonizeJob(): UseCartoonizeJobReturn {
         }
       );
 
+      console.log('✅ Cartoonize job completed successfully');
       setState(prev => ({
         ...prev,
         isLoading: false,
@@ -81,6 +87,7 @@ export function useCartoonizeJob(): UseCartoonizeJobReturn {
       }));
 
     } catch (error: any) {
+      console.error('❌ Cartoonize job failed:', error);
       setState(prev => ({
         ...prev,
         isLoading: false,
