@@ -205,6 +205,8 @@ export const api = {
     imageUrl: string | null
   ): Promise<CartoonizeJobResponse> => {
     validateRequired({ prompt, style, imageUrl }, ['prompt', style', 'imageUrl']);
+    ]
+    )
     return apiRequest('api/jobs/cartoonize/start', {
       method: 'POST',
       body: JSON.stringify({ prompt, style, imageUrl }),
