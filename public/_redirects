@@ -1,5 +1,19 @@
-# Netlify redirects - Secondary routing method
-/api/* https://storybook-backend-production-cb71.up.railway.app/api/:splat 200!
+# Netlify proxy redirects - Proper proxy syntax for API routing
+# Using 200 status code for transparent proxying (not redirects)
 
-# SPA fallback for client-side routing
+# Primary API proxy rules - proxy all /api/* calls to Railway backend
+/api/*  https://storybook-backend-production-cb71.up.railway.app/api/:splat  200
+
+# Specific API endpoints for better matching
+/api/image/*  https://storybook-backend-production-cb71.up.railway.app/api/image/:splat  200
+/api/story/*  https://storybook-backend-production-cb71.up.railway.app/api/story/:splat  200
+/api/jobs/*   https://storybook-backend-production-cb71.up.railway.app/api/jobs/:splat   200
+/api/send-otp https://storybook-backend-production-cb71.up.railway.app/api/send-otp 200
+/api/verify-otp https://storybook-backend-production-cb71.up.railway.app/api/verify-otp 200
+/api/upload-image https://storybook-backend-production-cb71.up.railway.app/api/upload-image 200
+
+# Health check endpoint
+/api/health https://storybook-backend-production-cb71.up.railway.app/api/health 200
+
+# SPA fallback for client-side routing (must be last)
 /* /index.html 200

@@ -40,16 +40,26 @@ const nextConfig = {
     NEXT_PUBLIC_RAILWAY_BACKEND_URL: 'https://storybook-backend-production-cb71.up.railway.app',
   },
   
-  // Primary routing method: Next.js rewrites (most reliable for Netlify)
-  async rewrites() {
-    return {
-      beforeFiles: [
-        {
-          source: '/api/:path*',
-          destination: 'https://storybook-backend-production-cb71.up.railway.app/api/:path*',
-        },
-      ],
-    };
+  // Remove Next.js rewrites to let Netlify handle routing
+  // Netlify proxy redirects are more reliable for this use case
+  
+  // Add headers for better API handling
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+          {
+            key: 'X-Proxy-Target',
+            value: 'Railway-Backend',
+          },
+        ],
+      },
+    ];
   },
 };
 
