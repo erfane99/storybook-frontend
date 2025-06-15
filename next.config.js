@@ -32,7 +32,6 @@ const nextConfig = {
     optimizeCss: true,
     optimizePackageImports: ['lucide-react'],
   },
-  // REMOVED: output: 'standalone', -- This breaks Netlify!
   poweredByHeader: false,
   compress: true,
   
@@ -53,6 +52,7 @@ const nextConfig = {
   
   // CRITICAL: Redirect ALL /api calls to Railway backend
   async rewrites() {
+    console.log('🔧 Next.js rewrites: Configuring API routing to Railway backend');
     return {
       beforeFiles: [
         {
@@ -71,6 +71,10 @@ const nextConfig = {
           {
             key: 'Cache-Control',
             value: 'no-cache, no-store, must-revalidate',
+          },
+          {
+            key: 'X-Railway-Backend',
+            value: 'true',
           },
         ],
       },

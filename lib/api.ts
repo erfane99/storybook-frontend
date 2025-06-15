@@ -523,8 +523,23 @@ if (typeof window !== 'undefined') {
       return { success: false, error };
     }
   };
+
+  // CRITICAL: Override fetch for relative /api calls to force Railway routing
+  const originalFetch = window.fetch;
+  window.fetch = function(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    // Check if this is a relative API call
+    if (typeof input === 'string' && input.startsWith('/api/')) {
+      const railwayUrl = buildApiUrl(input);
+      console.log(`🔄 INTERCEPTED: Redirecting ${input} to Railway backend: ${railwayUrl}`);
+      return originalFetch(railwayUrl, init);
+    }
+    
+    // For all other requests, use original fetch
+    return originalFetch(input, init);
+  };
   
   console.log('🔧 Railway API client exposed to window for debugging');
   console.log('🔧 Available functions: railwayAPI, buildApiUrl, apiRequest, testRailwayAPI()');
   console.log('🔧 Railway backend URL:', RAILWAY_BACKEND_URL);
+  console.log('🔧 ✅ FETCH INTERCEPTOR ACTIVE - All /api calls will route to Railway');
 }
