@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export',
+  trailingSlash: true,
+  distDir: 'out',
+  
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -35,31 +39,8 @@ const nextConfig = {
   poweredByHeader: false,
   compress: true,
   
-  // Environment variables
   env: {
     NEXT_PUBLIC_RAILWAY_BACKEND_URL: 'https://storybook-backend-production-cb71.up.railway.app',
-  },
-  
-  // REMOVED: Next.js rewrites to avoid conflicts with Netlify proxy
-  // Netlify redirects are handling API routing instead
-  
-  // Add headers for debugging
-  async headers() {
-    return [
-      {
-        source: '/api/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'no-cache, no-store, must-revalidate',
-          },
-          {
-            key: 'X-Debug-Proxy',
-            value: 'Netlify-To-Railway',
-          },
-        ],
-      },
-    ];
   },
 };
 
