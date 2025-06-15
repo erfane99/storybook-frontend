@@ -32,7 +32,7 @@ const nextConfig = {
     optimizeCss: true,
     optimizePackageImports: ['lucide-react'],
   },
-  output: 'standalone',
+  // REMOVED: output: 'standalone', -- This breaks Netlify!
   poweredByHeader: false,
   compress: true,
   
@@ -44,12 +44,10 @@ const nextConfig = {
   
   // Ensure proper path alias resolution in production
   webpack: (config, { isServer }) => {
-    // Add alias resolution for production builds
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': require('path').resolve(__dirname),
     };
-    
     return config;
   },
   
@@ -57,7 +55,6 @@ const nextConfig = {
   async rewrites() {
     return {
       beforeFiles: [
-        // Redirect any /api calls to Railway backend
         {
           source: '/api/:path*',
           destination: 'https://storybook-backend-production-cb71.up.railway.app/api/:path*',
@@ -66,7 +63,6 @@ const nextConfig = {
     };
   },
   
-  // Add headers to prevent caching of API routes
   async headers() {
     return [
       {
