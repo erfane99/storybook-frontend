@@ -4,5 +4,8 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  NPM_VERSION = "9"
 
-# Let Next.js handle the API routing instead of Netlify redirects
+# Using Next.js runtime instead of manual redirects
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
