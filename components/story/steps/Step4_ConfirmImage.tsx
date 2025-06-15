@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { RefreshCw, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { api } from '../../../lib/api';
+import { api } from '@/lib/api';
 
 interface Step4_ConfirmImageProps {
   imageUrl: string;
