@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Use Netlify's Next.js runtime instead of static export for better compatibility
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -27,7 +26,7 @@ const nextConfig = {
   },
   poweredByHeader: false,
   
-  // Use rewrites for better integration with Netlify
+  // Use Next.js rewrites for better Netlify integration
   async rewrites() {
     return {
       beforeFiles: [
