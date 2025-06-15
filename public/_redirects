@@ -1,20 +1,5 @@
-# Netlify redirects - CRITICAL: Force all /api calls to Railway backend
+# Netlify redirects - Secondary routing method
 /api/* https://storybook-backend-production-cb71.up.railway.app/api/:splat 200!
-
-# Specific API endpoints
-/api/image/describe https://storybook-backend-production-cb71.up.railway.app/api/image/describe 200!
-/api/image/cartoonize https://storybook-backend-production-cb71.up.railway.app/api/image/cartoonize 200!
-/api/upload-image https://storybook-backend-production-cb71.up.railway.app/api/upload-image 200!
-/api/send-otp https://storybook-backend-production-cb71.up.railway.app/api/send-otp 200!
-/api/verify-otp https://storybook-backend-production-cb71.up.railway.app/api/verify-otp 200!
-/api/story/* https://storybook-backend-production-cb71.up.railway.app/api/story/:splat 200!
-/api/jobs/* https://storybook-backend-production-cb71.up.railway.app/api/jobs/:splat 200!
-
-# Health check
-/api/health https://storybook-backend-production-cb71.up.railway.app/api/health 200!
-
-# Fallback for any other API patterns
-/api https://storybook-backend-production-cb71.up.railway.app/api 200!
 
 # SPA fallback for client-side routing
 /* /index.html 200

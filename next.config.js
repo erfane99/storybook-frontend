@@ -35,24 +35,13 @@ const nextConfig = {
   poweredByHeader: false,
   compress: true,
   
-  // Environment variables for Railway backend
+  // Environment variables
   env: {
-    NEXT_PUBLIC_API_URL: 'https://storybook-backend-production-cb71.up.railway.app',
-    NEXT_PUBLIC_RAILWAY_BACKEND: 'https://storybook-backend-production-cb71.up.railway.app',
+    NEXT_PUBLIC_RAILWAY_BACKEND_URL: 'https://storybook-backend-production-cb71.up.railway.app',
   },
   
-  // Ensure proper path alias resolution in production
-  webpack: (config, { isServer }) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      '@': require('path').resolve(__dirname),
-    };
-    return config;
-  },
-  
-  // CRITICAL: Redirect ALL /api calls to Railway backend
+  // Primary routing method: Next.js rewrites (most reliable for Netlify)
   async rewrites() {
-    console.log('🔧 Next.js rewrites: Configuring API routing to Railway backend');
     return {
       beforeFiles: [
         {
@@ -61,24 +50,6 @@ const nextConfig = {
         },
       ],
     };
-  },
-  
-  async headers() {
-    return [
-      {
-        source: '/api/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'no-cache, no-store, must-revalidate',
-          },
-          {
-            key: 'X-Railway-Backend',
-            value: 'true',
-          },
-        ],
-      },
-    ];
   },
 };
 

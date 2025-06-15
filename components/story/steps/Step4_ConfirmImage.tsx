@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { RefreshCw, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { api } from '@/lib/api';
+import { api } from '@/lib/api-client';
 
 interface Step4_ConfirmImageProps {
   imageUrl: string;
@@ -27,7 +27,6 @@ export function Step4_ConfirmImage({
   const [prompt, setPrompt] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [currentStatus, setCurrentStatus] = useState<string>('');
-  const [jobId, setJobId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -68,14 +67,13 @@ export function Step4_ConfirmImage({
       setCurrentStatus('Starting cartoonization...');
       setProgress(25);
 
-      console.log('🎨 Starting cartoonize job with Railway backend...');
+      console.log('🎨 Starting cartoonize job...');
       const result = await api.cartoonizeImage(
         finalPrompt,
         cartoonStyle,
         imageUrl,
         (jobProgress) => {
           console.log(`🎨 Progress update: ${jobProgress}%`);
-          // Update progress (scale from 25-95 to leave room for completion)
           const scaledProgress = 25 + (jobProgress * 0.7);
           setProgress(Math.min(scaledProgress, 95));
         },

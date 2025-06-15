@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Upload, History, Loader2, X } from 'lucide-react';
 import { StoryFormData } from '../MultiStepStoryForm';
 import { getClientSupabase } from '@/lib/supabase/client';
-import { api } from '@/lib/api';
+import { api } from '@/lib/api-client';
 
 interface Step2_ImageProps {
   formData: StoryFormData;
@@ -36,11 +36,10 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
     setIsLoading(true);
 
     try {
-      // Upload to Railway backend via API
       const formDataToUpload = new FormData();
       formDataToUpload.append('image', file);
 
-      console.log('🖼️ Uploading image to Railway backend...');
+      console.log('🖼️ Uploading image...');
       const { secure_url } = await api.uploadImage(formDataToUpload);
 
       updateFormData({
