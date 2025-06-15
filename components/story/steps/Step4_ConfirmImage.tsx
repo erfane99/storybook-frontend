@@ -37,6 +37,10 @@ export function Step4_ConfirmImage({
   }, []);
 
   const generateCartoonImage = async () => {
+    console.log('🎨 Step4_ConfirmImage: Starting cartoon generation...');
+    console.log('🎨 Image URL:', imageUrl);
+    console.log('🎨 Cartoon Style:', cartoonStyle);
+    
     setIsGenerating(true);
     setError(null);
     setProgress(0);
@@ -50,10 +54,12 @@ export function Step4_ConfirmImage({
         setCurrentStatus('Analyzing image...');
         setProgress(10);
         
+        console.log('🔍 Calling describeImage API...');
         const { characterDescription } = await api.describeImage(imageUrl);
         finalPrompt = characterDescription;
         setPrompt(characterDescription);
         
+        console.log('🔍 Image description received:', characterDescription);
         setProgress(20);
         setCurrentStatus('Description complete');
       }
@@ -62,20 +68,24 @@ export function Step4_ConfirmImage({
       setCurrentStatus('Starting cartoonization...');
       setProgress(25);
 
+      console.log('🎨 Starting cartoonize job with Railway backend...');
       const result = await api.cartoonizeImage(
         finalPrompt,
         cartoonStyle,
         imageUrl,
         (jobProgress) => {
+          console.log(`🎨 Progress update: ${jobProgress}%`);
           // Update progress (scale from 25-95 to leave room for completion)
           const scaledProgress = 25 + (jobProgress * 0.7);
           setProgress(Math.min(scaledProgress, 95));
         },
         (status) => {
+          console.log(`🎨 Status update: ${status}`);
           setCurrentStatus(getStatusMessage(status));
         }
       );
 
+      console.log('✅ Cartoonize job completed successfully:', result);
       setProgress(100);
       setCurrentStatus('Complete!');
       updateFormData({ cartoonizedUrl: result.url });
@@ -86,6 +96,7 @@ export function Step4_ConfirmImage({
       });
 
     } catch (error: any) {
+      console.error('❌ Cartoonize job failed:', error);
       setError(error.message);
       setProgress(0);
       setCurrentStatus('Failed');

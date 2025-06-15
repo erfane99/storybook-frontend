@@ -1,5 +1,5 @@
 // API configuration and utilities
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://storybook-backend-production-cb71.up.railway.app';
+const API_BASE_URL = 'https://storybook-backend-production-cb71.up.railway.app'; // HARDCODED Railway URL
 
 export const apiConfig = {
   baseURL: API_BASE_URL,
@@ -59,20 +59,34 @@ function validateRequired(params: Record<string, any>, requiredFields: string[])
   }
 }
 
-// Helper function to build API URLs - FIXED to always use Railway backend
+// Helper function to build API URLs - ENHANCED DEBUG VERSION
 export function buildApiUrl(endpoint: string): string {
-  // Remove leading slash if present to avoid double slashes
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
-  // ALWAYS use Railway backend URL, never relative paths
-  return `https://storybook-backend-production-cb71.up.railway.app/${cleanEndpoint}`;
+  const url = `${API_BASE_URL}/${cleanEndpoint}`;
+  
+  // DETAILED DEBUG LOGGING
+  console.log('🚀 buildApiUrl input:', endpoint);
+  console.log('🚀 buildApiUrl cleanEndpoint:', cleanEndpoint);
+  console.log('🚀 buildApiUrl API_BASE_URL:', API_BASE_URL);
+  console.log('🚀 buildApiUrl final URL:', url);
+  console.log('🚀 buildApiUrl URL check - contains Railway?', url.includes('railway.app'));
+  console.log('🚀 buildApiUrl URL check - contains Netlify?', url.includes('netlify.app'));
+  
+  return url;
 }
 
-// Enhanced fetch wrapper with error handling
+// Enhanced fetch wrapper with error handling and DETAILED LOGGING
 export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
   const url = buildApiUrl(endpoint);
+  
+  // CRITICAL DEBUG LOGGING
+  console.log('🌐 apiRequest called with endpoint:', endpoint);
+  console.log('🌐 apiRequest buildApiUrl result:', url);
+  console.log('🌐 apiRequest final URL verification:', url);
+  console.log('🌐 apiRequest URL domain check:', new URL(url).hostname);
   
   const defaultOptions: RequestInit = {
     headers: {
@@ -82,18 +96,33 @@ export async function apiRequest<T = any>(
     ...options,
   };
 
+  // Remove Content-Type for FormData
+  if (options.body instanceof FormData) {
+    delete defaultOptions.headers!['Content-Type'];
+  }
+
   try {
-    console.log(`🌐 API Request: ${url}`); // Debug logging
+    console.log(`🌐 Making API request to: ${url}`); // Debug logging
+    console.log(`🌐 Request method: ${defaultOptions.method || 'GET'}`);
+    console.log(`🌐 Request headers:`, defaultOptions.headers);
+    
     const response = await fetch(url, defaultOptions);
+    
+    console.log(`🌐 Response status: ${response.status}`);
+    console.log(`🌐 Response URL: ${response.url}`);
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error(`❌ API Error Response:`, errorData);
       throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
     }
 
-    return await response.json();
+    const responseData = await response.json();
+    console.log(`✅ API Success Response:`, responseData);
+    return responseData;
   } catch (error) {
     console.error(`❌ API request failed for ${endpoint}:`, error);
+    console.error(`❌ Failed URL was: ${url}`);
     throw error;
   }
 }
@@ -119,6 +148,7 @@ export async function pollJobStatus(
           : buildApiUrl(pollingUrl);
         
         console.log(`🔄 Polling: ${fullPollingUrl}`); // Debug logging
+        console.log(`🔄 Polling URL domain: ${new URL(fullPollingUrl).hostname}`);
         
         const response = await fetch(fullPollingUrl, {
           headers: {
@@ -172,6 +202,7 @@ export async function pollJobStatus(
 export const api = {
   // Auth endpoints
   sendOTP: (phone: string | null): Promise<OTPResponse> => {
+    console.log('📞 sendOTP called - will use Railway backend');
     validateRequired({ phone }, ['phone']);
     return apiRequest('api/send-otp', {
       method: 'POST',
@@ -180,6 +211,7 @@ export const api = {
   },
 
   verifyOTP: (phone: string | null, otp_code: string | null): Promise<OTPResponse> => {
+    console.log('🔐 verifyOTP called - will use Railway backend');
     validateRequired({ phone, otp_code }, ['phone', 'otp_code']);
     return apiRequest('api/verify-otp', {
       method: 'POST',
@@ -189,6 +221,7 @@ export const api = {
 
   // Image endpoints
   uploadImage: (formData: FormData | null): Promise<UploadImageResponse> => {
+    console.log('🖼️ uploadImage called - will use Railway backend');
     if (!formData) {
       throw new Error('FormData is required for image upload');
     }
@@ -200,6 +233,8 @@ export const api = {
   },
 
   describeImage: (imageUrl: string | null): Promise<ImageDescribeResponse> => {
+    console.log('🔍 describeImage called - will use Railway backend');
+    console.log('🔍 describeImage imageUrl:', imageUrl);
     validateRequired({ imageUrl }, ['imageUrl']);
     return apiRequest('api/image/describe', {
       method: 'POST',
@@ -213,6 +248,7 @@ export const api = {
     style: string | null, 
     imageUrl: string | null
   ): Promise<CartoonizeJobResponse> => {
+    console.log('🎨 startCartoonizeJob called - will use Railway backend');
     validateRequired({ prompt, style, imageUrl }, ['prompt', 'style', 'imageUrl']);
     return apiRequest('api/jobs/cartoonize/start', {
       method: 'POST',
@@ -221,6 +257,7 @@ export const api = {
   },
 
   getCartoonizeJobStatus: (jobId: string | null): Promise<JobStatusResponse> => {
+    console.log('📊 getCartoonizeJobStatus called - will use Railway backend');
     validateRequired({ jobId }, ['jobId']);
     return apiRequest(`api/jobs/cartoonize/status/${jobId}`);
   },
@@ -233,10 +270,12 @@ export const api = {
     onProgress?: (progress: number) => void,
     onStatusChange?: (status: string) => void
   ): Promise<CartoonizeImageResponse> => {
+    console.log('🎨 cartoonizeImage called - will use Railway backend job system');
     validateRequired({ prompt, style, imageUrl }, ['prompt', 'style', 'imageUrl']);
     
     // Start the job
     const { jobId, pollingUrl } = await api.startCartoonizeJob(prompt, style, imageUrl);
+    console.log('🎨 Cartoonize job started:', { jobId, pollingUrl });
     
     // Poll for completion
     const result = await pollJobStatus(jobId, pollingUrl, onProgress, onStatusChange);
@@ -250,6 +289,7 @@ export const api = {
     characterImage: string | null, 
     audience: string | null
   ) => {
+    console.log('📖 generateScenes called - will use Railway backend');
     validateRequired({ story, characterImage, audience }, ['story', 'characterImage', 'audience']);
     return apiRequest('api/story/generate-scenes', {
       method: 'POST',
@@ -264,6 +304,7 @@ export const api = {
     audience: string | null;
     user_id: string | null;
   }) => {
+    console.log('🤖 generateAutoStory called - will use Railway backend');
     validateRequired(data, ['genre', 'characterDescription', 'cartoonImageUrl', 'audience', 'user_id']);
     return apiRequest('api/story/generate-auto-story', {
       method: 'POST',
@@ -280,6 +321,7 @@ export const api = {
     isReusedImage: boolean;
     user_id?: string | null;
   }) => {
+    console.log('📚 createStorybook called - will use Railway backend');
     validateRequired(data, ['title', 'story', 'characterImage', 'pages', 'audience']);
     return apiRequest('api/story/create-storybook', {
       method: 'POST',
@@ -288,6 +330,7 @@ export const api = {
   },
 
   generateCartoonImage: (image_prompt: string | null) => {
+    console.log('🎨 generateCartoonImage called - will use Railway backend');
     validateRequired({ image_prompt }, ['image_prompt']);
     return apiRequest('api/story/generate-cartoon-image', {
       method: 'POST',
@@ -297,6 +340,7 @@ export const api = {
 
   // User storybook endpoints
   getUserStorybooks: (token: string | null) => {
+    console.log('📚 getUserStorybooks called - will use Railway backend');
     validateRequired({ token }, ['token']);
     return apiRequest('api/story/get-user-storybooks', {
       headers: {
@@ -306,6 +350,7 @@ export const api = {
   },
 
   getUserStorybookById: (id: string | null, token: string | null) => {
+    console.log('📖 getUserStorybookById called - will use Railway backend');
     validateRequired({ id, token }, ['id', 'token']);
     return apiRequest(`api/story/get-user-storybook-by-id?id=${id}`, {
       headers: {
@@ -315,6 +360,7 @@ export const api = {
   },
 
   deleteStorybookById: (id: string | null, token: string | null) => {
+    console.log('🗑️ deleteStorybookById called - will use Railway backend');
     validateRequired({ id, token }, ['id', 'token']);
     return apiRequest(`api/story/delete-by-id?id=${id}`, {
       method: 'DELETE',
@@ -325,6 +371,7 @@ export const api = {
   },
 
   requestPrint: (storybook_id: string | null, token: string | null) => {
+    console.log('🖨️ requestPrint called - will use Railway backend');
     validateRequired({ storybook_id, token }, ['storybook_id', 'token']);
     return apiRequest('api/story/request-print', {
       method: 'POST',
@@ -342,6 +389,7 @@ export const api = {
     cartoonImageUrl: string | null;
     audience: string | null;
   }) => {
+    console.log('🤖 startAutoStoryJob called - will use Railway backend');
     validateRequired(data, ['genre', 'characterDescription', 'cartoonImageUrl', 'audience']);
     return apiRequest('api/jobs/auto-story/start', {
       method: 'POST',
@@ -354,6 +402,7 @@ export const api = {
     characterImage: string | null;
     audience: string | null;
   }) => {
+    console.log('📖 startScenesJob called - will use Railway backend');
     validateRequired(data, ['story', 'characterImage', 'audience']);
     return apiRequest('api/jobs/scenes/start', {
       method: 'POST',
@@ -369,6 +418,7 @@ export const api = {
     audience: string | null;
     isReusedImage: boolean;
   }) => {
+    console.log('📚 startStorybookJob called - will use Railway backend');
     validateRequired(data, ['title', 'story', 'characterImage', 'pages', 'audience']);
     return apiRequest('api/jobs/storybook/start', {
       method: 'POST',
@@ -377,6 +427,7 @@ export const api = {
   },
 
   getUserJobs: (token: string | null) => {
+    console.log('📊 getUserJobs called - will use Railway backend');
     validateRequired({ token }, ['token']);
     return apiRequest('api/jobs/user', {
       headers: {
@@ -386,6 +437,7 @@ export const api = {
   },
 
   cancelJob: (jobId: string | null) => {
+    console.log('🚫 cancelJob called - will use Railway backend');
     validateRequired({ jobId }, ['jobId']);
     return apiRequest(`api/jobs/cancel/${jobId}`, {
       method: 'POST',
@@ -393,6 +445,7 @@ export const api = {
   },
 
   deleteJob: (jobId: string | null, token: string | null) => {
+    console.log('🗑️ deleteJob called - will use Railway backend');
     validateRequired({ jobId, token }, ['jobId', 'token']);
     return apiRequest(`api/jobs/${jobId}`, {
       method: 'DELETE',
