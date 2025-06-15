@@ -35,10 +35,13 @@ const nextConfig = {
   output: 'standalone',
   poweredByHeader: false,
   compress: true,
+  
   // Environment variables for Railway backend
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://storybook-backend-production-cb71.up.railway.app',
+    NEXT_PUBLIC_API_URL: 'https://storybook-backend-production-cb71.up.railway.app',
+    NEXT_PUBLIC_RAILWAY_BACKEND: 'https://storybook-backend-production-cb71.up.railway.app',
   },
+  
   // Ensure proper path alias resolution in production
   webpack: (config, { isServer }) => {
     // Add alias resolution for production builds
@@ -49,7 +52,8 @@ const nextConfig = {
     
     return config;
   },
-  // Disable API routes in frontend build
+  
+  // CRITICAL: Redirect ALL /api calls to Railway backend
   async rewrites() {
     return {
       beforeFiles: [
@@ -60,6 +64,21 @@ const nextConfig = {
         },
       ],
     };
+  },
+  
+  // Add headers to prevent caching of API routes
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
+      },
+    ];
   },
 };
 
