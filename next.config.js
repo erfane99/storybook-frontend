@@ -26,8 +26,12 @@ const nextConfig = {
   },
   poweredByHeader: false,
   
-  // Remove rewrites - Netlify handles this better with redirects
-  // This is the 2025 best practice for Next.js on Netlify
+  // Ensure static export compatibility with Netlify
+  output: 'export',
+  trailingSlash: true,
+  
+  // Remove any conflicting configurations
+  // Let Netlify handle all API routing
 };
 
 module.exports = nextConfig;

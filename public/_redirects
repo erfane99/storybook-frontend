@@ -1,0 +1,5 @@
+# Netlify redirects file - backup configuration
+# This ensures redirects work even if netlify.toml fails
+
+/api/*  https://storybook-backend-production-cb71.up.railway.app/api/:splat  200
+/api/health  https://storybook-backend-production-cb71.up.railway.app/api/health  200

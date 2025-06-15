@@ -10,9 +10,17 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# API Proxy Configuration - Clean and Simple
+# API Proxy Configuration - Updated for Next.js App Router
 [[redirects]]
   from = "/api/*"
   to = "https://storybook-backend-production-cb71.up.railway.app/api/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
+
+# Health check endpoint for testing
+[[redirects]]
+  from = "/api/health"
+  to = "https://storybook-backend-production-cb71.up.railway.app/api/health"
   status = 200
   force = true
