@@ -1,6 +1,6 @@
-// Simplified API module - re-exports from clean modules
+// Clean re-export module following 2025 best practices
 export { api } from './api-client';
-export { buildApiUrl, getApiBaseUrl, apiConfig } from './api-config';
+export { buildApiUrl, getApiBaseUrl, apiConfig, testAPIConnection } from './api-config';
 export type {
   APIResponse,
   ImageDescribeResponse,

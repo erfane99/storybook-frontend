@@ -4,9 +4,6 @@ import { Inter as FontSans } from 'next/font/google';
 import { cn } from '@/lib/utils';
 import { RootClientWrapper } from '@/app/_components/root-client-wrapper';
 
-// Import API configuration to ensure debug functions are available
-import '@/lib/api-config';
-
 const fontSans = FontSans({
   subsets: ['latin'],
   variable: '--font-sans',

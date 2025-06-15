@@ -17,7 +17,7 @@ import { useJobPolling } from '@/hooks/use-job-polling';
 import { ProgressTracker } from '@/components/ui/progress-tracker';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getClientSupabase } from '@/lib/supabase/client';
-import { api } from '@/lib/api';
+import { api } from '@/lib/api-client';
 
 export interface StoryFormData {
   title: string;

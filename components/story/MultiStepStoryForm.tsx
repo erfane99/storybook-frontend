@@ -15,7 +15,7 @@ import { Step6_Confirmation } from './steps/Step6_Confirmation';
 import { useToast } from '@/hooks/use-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getClientSupabase } from '@/lib/supabase/client';
-import { api } from '@/lib/api';
+import { api } from '@/lib/api-client';
 
 export interface StoryFormData {
   title: string;

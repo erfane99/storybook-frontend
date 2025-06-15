@@ -26,17 +26,8 @@ const nextConfig = {
   },
   poweredByHeader: false,
   
-  // Use Next.js rewrites for better Netlify integration
-  async rewrites() {
-    return {
-      beforeFiles: [
-        {
-          source: '/api/:path*',
-          destination: 'https://storybook-backend-production-cb71.up.railway.app/api/:path*',
-        },
-      ],
-    };
-  },
+  // Remove rewrites - Netlify handles this better with redirects
+  // This is the 2025 best practice for Next.js on Netlify
 };
 
 module.exports = nextConfig;

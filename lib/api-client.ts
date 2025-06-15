@@ -1,4 +1,4 @@
-// Clean, typed API client with proper error handling
+// Clean, production-ready API client
 import { buildApiUrl } from './api-config';
 
 export interface APIResponse<T = any> {
@@ -97,7 +97,7 @@ export async function pollJobStatus(
   onProgress?: (progress: number) => void,
   onStatusChange?: (status: string) => void
 ): Promise<any> {
-  const maxAttempts = 180; // 3 minutes
+  const maxAttempts = 180;
   let attempts = 0;
 
   return new Promise((resolve, reject) => {
