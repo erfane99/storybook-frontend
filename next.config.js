@@ -26,12 +26,10 @@ const nextConfig = {
   },
   poweredByHeader: false,
   
-  // Ensure static export compatibility with Netlify
-  output: 'export',
-  trailingSlash: true,
+  // Removed output: 'export' and trailingSlash: true
+  // These are incompatible with dynamic routes without generateStaticParams()
   
-  // Remove any conflicting configurations
-  // Let Netlify handle all API routing
+  // Let Netlify handle all API routing through redirects
 };
 
 module.exports = nextConfig;
