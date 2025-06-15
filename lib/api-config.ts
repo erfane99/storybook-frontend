@@ -32,8 +32,19 @@ export const apiConfig = {
   },
 };
 
+// TypeScript interface for test results
+interface APITestResult {
+  success: boolean;
+  status: number;
+  url: string;
+  headers: { [k: string]: string };
+  timestamp: string;
+  data?: any; // Added missing data property
+  error?: string;
+}
+
 // Enhanced debug function for testing
-export async function testAPIConnection() {
+export async function testAPIConnection(): Promise<APITestResult | null> {
   if (typeof window === 'undefined') return null;
   
   console.log('🧪 Testing API connection...');
@@ -53,7 +64,7 @@ export async function testAPIConnection() {
     console.log('🧪 Response URL:', response.url);
     console.log('🧪 Response headers:', Object.fromEntries(response.headers.entries()));
     
-    const result = {
+    const result: APITestResult = {
       success: response.ok,
       status: response.status,
       url: response.url,
@@ -75,14 +86,17 @@ export async function testAPIConnection() {
     console.error('🧪 Test failed:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      status: 0,
+      url: '',
+      headers: {},
       timestamp: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
 
 // Debug function to test Railway backend directly
-export async function testRailwayDirect() {
+export async function testRailwayDirect(): Promise<APITestResult | null> {
   if (typeof window === 'undefined') return null;
   
   try {
@@ -91,13 +105,17 @@ export async function testRailwayDirect() {
       success: response.ok,
       status: response.status,
       url: response.url,
-      direct: true,
+      headers: Object.fromEntries(response.headers.entries()),
+      timestamp: new Date().toISOString(),
     };
   } catch (error) {
     return {
       success: false,
+      status: 0,
+      url: '',
+      headers: {},
+      timestamp: new Date().toISOString(),
       error: error instanceof Error ? error.message : 'Unknown error',
-      direct: true,
     };
   }
 }
