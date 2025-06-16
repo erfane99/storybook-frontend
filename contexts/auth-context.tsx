@@ -8,7 +8,7 @@ import { User, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/supabase/database.types';
 
 interface Profile {
-  id: string;
+  user_id: string; // Changed from id to user_id to match database schema
   email: string;
   full_name?: string;
   avatar_url?: string;
@@ -82,10 +82,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       console.log('👤 Refreshing profile for user:', userId);
+      // FIXED: Use user_id instead of id to match database schema
       const { data: profileData, error: profileError } = await client
         .from('profiles')
         .select('*')
-        .eq('id', userId)
+        .eq('user_id', userId) // Changed from 'id' to 'user_id'
         .single();
 
       if (profileError && profileError.code !== 'PGRST116') {
@@ -110,11 +111,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('👤 Checking if profile exists for user:', user.id);
       
-      // Check if profile already exists
+      // FIXED: Check if profile already exists using user_id
       const { data: existingProfile, error: profileCheckError } = await client
         .from('profiles')
-        .select('id')
-        .eq('id', user.id)
+        .select('user_id') // Changed from 'id' to 'user_id'
+        .eq('user_id', user.id) // Changed from 'id' to 'user_id'
         .single();
 
       // If profile doesn't exist (PGRST116 = no rows returned), create it
@@ -122,10 +123,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('👤 Creating new profile for user:', user.id);
         const currentTime = new Date().toISOString();
         
+        // FIXED: Insert using user_id instead of id
         const { error: insertError } = await client
           .from('profiles')
           .insert({
-            id: user.id,
+            user_id: user.id, // Changed from 'id' to 'user_id'
             email: user.email || '',
             user_type: 'user',
             onboarding_step: 'not_started',
@@ -215,10 +217,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       console.log('👤 Updating onboarding step to:', step);
+      // FIXED: Use user_id instead of id in where clause
       const { error } = await supabase
         .from('profiles')
         .update({ onboarding_step: step })
-        .eq('id', user.id);
+        .eq('user_id', user.id); // Changed from 'id' to 'user_id'
 
       if (error) throw error;
       await refreshProfile();
