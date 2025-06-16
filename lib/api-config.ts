@@ -2,9 +2,9 @@
 const RAILWAY_BACKEND_URL = 'https://storybook-backend-production-cb71.up.railway.app';
 
 export function getApiBaseUrl(): string {
-  // CRITICAL: Always use relative URLs in browser for Netlify proxy
+  // For web browsers, call Railway backend directly
   if (typeof window !== 'undefined') {
-    return '';
+    return RAILWAY_BACKEND_URL;
   }
   
   // For server-side rendering (rare with App Router)
@@ -15,12 +15,7 @@ export function buildApiUrl(endpoint: string): string {
   const baseUrl = getApiBaseUrl();
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
   
-  // Return relative URL for Netlify proxy
-  if (!baseUrl) {
-    return `/${cleanEndpoint}`;
-  }
-  
-  // Full URL for server-side
+  // Always return full URL for direct Railway calls
   return `${baseUrl}/${cleanEndpoint}`;
 }
 
@@ -39,7 +34,7 @@ interface APITestResult {
   url: string;
   headers: { [k: string]: string };
   timestamp: string;
-  data?: any; // Added missing data property
+  data?: any;
   error?: string;
 }
 
@@ -47,13 +42,13 @@ interface APITestResult {
 export async function testAPIConnection(): Promise<APITestResult | null> {
   if (typeof window === 'undefined') return null;
   
-  console.log('🧪 Testing API connection...');
+  console.log('🧪 Testing direct Railway API connection...');
   console.log('🧪 Environment:', process.env.NODE_ENV);
   console.log('🧪 Base URL:', getApiBaseUrl());
   console.log('🧪 Test URL:', buildApiUrl('api/health'));
   
   try {
-    const response = await fetch('/api/health', {
+    const response = await fetch(buildApiUrl('api/health'), {
       method: 'GET',
       headers: {
         'Cache-Control': 'no-cache',
@@ -128,7 +123,7 @@ if (typeof window !== 'undefined') {
   (window as any).buildApiUrl = buildApiUrl;
   
   console.log('🔧 Debug functions available:');
-  console.log('🔧 - testAPIConnection() - Test proxy through Netlify');
+  console.log('🔧 - testAPIConnection() - Test direct Railway connection');
   console.log('🔧 - testRailwayDirect() - Test Railway backend directly');
   console.log('🔧 - getApiBaseUrl() - Check base URL configuration');
   console.log('🔧 - buildApiUrl(endpoint) - Test URL building');
