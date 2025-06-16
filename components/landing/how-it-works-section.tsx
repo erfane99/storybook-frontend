@@ -45,44 +45,46 @@ const itemVariants = {
 
 export function HowItWorksSection() {
   return (
-    <section className="py-16 bg-white/70 dark:bg-black/40 backdrop-blur-sm">
-      <div className="text-center mb-12">
-        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">
-          Create Your Story in 3 Easy Steps
-        </h2>
-        <p className="text-muted-foreground max-w-2xl mx-auto">
-          Turn your ideas into magical storybooks with our simple process
-        </p>
-      </div>
+    <section id="how-it-works" className="py-16 bg-white/70 dark:bg-black/40 backdrop-blur-sm">
+      <div className="container mx-auto px-4">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">
+            Create Your Story in 3 Easy Steps
+          </h2>
+          <p className="text-muted-foreground max-w-2xl mx-auto">
+            Turn your ideas into magical storybooks with our simple process
+          </p>
+        </div>
 
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-        className="grid gap-8 md:grid-cols-3"
-      >
-        {steps.map((step, index) => (
-          <motion.div key={step.title} variants={itemVariants}>
-            <Card className="h-full bg-white/80 dark:bg-zinc-900/50 backdrop-blur rounded-xl shadow-lg hover:shadow-xl transition">
-              <CardContent className="p-6">
-                <div className="relative w-full aspect-square mb-4 rounded-lg overflow-hidden">
-                  <Image
-                    src={step.image}
-                    alt={step.title}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                    priority={index === 0}
-                  />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
-                <p className="text-muted-foreground">{step.description}</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </motion.div>
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="grid gap-8 md:grid-cols-3"
+        >
+          {steps.map((step, index) => (
+            <motion.div key={step.title} variants={itemVariants}>
+              <Card className="h-full bg-white/80 dark:bg-zinc-900/50 backdrop-blur rounded-xl shadow-lg hover:shadow-xl transition">
+                <CardContent className="p-6">
+                  <div className="relative w-full aspect-square mb-4 rounded-lg overflow-hidden">
+                    <Image
+                      src={step.image}
+                      alt={step.title}
+                      fill
+                      unoptimized
+                      className="object-cover"
+                      priority={index === 0}
+                    />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
+                  <p className="text-muted-foreground">{step.description}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </motion.div>
+      </div>
     </section>
   );
 }

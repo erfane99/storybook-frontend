@@ -46,10 +46,28 @@ export default function Navbar() {
 
   const isActive = (path: string) => pathname === path;
 
+  const handleHowItWorksClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    // If we're not on the home page, navigate there first
+    if (pathname !== '/') {
+      router.push('/#how-it-works');
+    } else {
+      // If we're already on the home page, scroll to the section
+      const element = document.getElementById('how-it-works');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+    
+    // Close mobile menu if open
+    setIsOpen(false);
+  };
+
   const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/pricing', label: 'Pricing' },
-    { href: '/how-it-works', label: 'How It Works' },
+    { href: '/#how-it-works', label: 'How It Works', onClick: handleHowItWorksClick },
   ];
 
   // Always render the navbar structure, but show loading states for auth-dependent content
@@ -171,16 +189,29 @@ export default function Navbar() {
         {/* Desktop Navigation - Always visible */}
         <nav className="hidden md:flex items-center space-x-8">
           {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={cn(
-                'text-sm font-medium transition-colors hover:text-primary',
-                isActive(link.href) ? 'text-primary' : 'text-muted-foreground'
-              )}
-            >
-              {link.label}
-            </Link>
+            link.onClick ? (
+              <button
+                key={link.href}
+                onClick={link.onClick}
+                className={cn(
+                  'text-sm font-medium transition-colors hover:text-primary',
+                  isActive(link.href) ? 'text-primary' : 'text-muted-foreground'
+                )}
+              >
+                {link.label}
+              </button>
+            ) : (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  'text-sm font-medium transition-colors hover:text-primary',
+                  isActive(link.href) ? 'text-primary' : 'text-muted-foreground'
+                )}
+              >
+                {link.label}
+              </Link>
+            )
           ))}
         </nav>
 
@@ -209,17 +240,30 @@ export default function Navbar() {
         <div className="md:hidden pt-2 pb-4 px-8 bg-background/95 backdrop-blur-sm border-t">
           <nav className="flex flex-col space-y-4 py-4">
             {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  'text-sm font-medium transition-colors hover:text-primary',
-                  isActive(link.href) ? 'text-primary' : 'text-muted-foreground'
-                )}
-                onClick={() => setIsOpen(false)}
-              >
-                {link.label}
-              </Link>
+              link.onClick ? (
+                <button
+                  key={link.href}
+                  onClick={link.onClick}
+                  className={cn(
+                    'text-sm font-medium transition-colors hover:text-primary text-left',
+                    isActive(link.href) ? 'text-primary' : 'text-muted-foreground'
+                  )}
+                >
+                  {link.label}
+                </button>
+              ) : (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    'text-sm font-medium transition-colors hover:text-primary',
+                    isActive(link.href) ? 'text-primary' : 'text-muted-foreground'
+                  )}
+                  onClick={() => setIsOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              )
             ))}
             <div className="pt-2 flex flex-col space-y-3">
               {renderMobileAuthButtons()}
