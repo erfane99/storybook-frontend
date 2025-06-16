@@ -49,7 +49,7 @@ export default function Navbar() {
   const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/pricing', label: 'Pricing' },
-    { href: '/examples', label: 'Examples' },
+    { href: '/how-it-works', label: 'How It Works' },
   ];
 
   // Always render the navbar structure, but show loading states for auth-dependent content

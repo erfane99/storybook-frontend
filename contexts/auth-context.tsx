@@ -181,6 +181,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Then refresh the profile data
         await refreshProfile(supabase, session.user.id);
+        
+        // Redirect to home page after successful sign-in
+        console.log('🔐 Redirecting to home page after successful sign-in');
+        router.push('/');
       } else if (event === 'SIGNED_OUT') {
         console.log('🔐 User signed out');
         setUser(null);
@@ -201,7 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
       clearInterval(refreshInterval);
     };
-  }, [supabase, user]);
+  }, [supabase, user, router]);
 
   const updateOnboardingStep = async (step: Profile['onboarding_step']): Promise<void> => {
     if (!user?.id || !supabase) {
