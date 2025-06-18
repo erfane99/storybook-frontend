@@ -15,6 +15,7 @@ import { Step6_ConfirmationWithJobs } from './steps/Step6_ConfirmationWithJobs';
 import { useToast } from '@/hooks/use-toast';
 import { useJobPolling } from '@/hooks/use-job-polling';
 import { ProgressTracker } from '@/components/ui/progress-tracker';
+import { JobData } from '@/hooks/use-job-polling';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getClientSupabase } from '@/lib/supabase/client';
 import { api } from '@/lib/api-client';
@@ -30,6 +31,9 @@ export interface StoryFormData {
   characterDescription?: string;
   storyMode: 'manual' | 'auto';
   selectedGenre?: string;
+  // NEW: Cartoon management properties
+  cartoonSaveId?: string;
+  isPermanentlySaved?: boolean;
 }
 
 export function MultiStepStoryFormWithJobs() {
@@ -376,6 +380,7 @@ export function MultiStepStoryFormWithJobs() {
                 error={jobData.error}
                 onCancel={handleCancel}
                 showDetails={true}
+                compact={false}
               />
             )}
 
