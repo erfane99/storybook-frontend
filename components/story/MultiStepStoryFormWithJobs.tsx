@@ -99,15 +99,28 @@ export function MultiStepStoryFormWithJobs() {
   };
 
   const handleSubmit = async () => {
+    console.log('🚀 DEBUG: handleSubmit called');
+    console.log('🚀 DEBUG: currentStep:', currentStep);
+    console.log('🚀 DEBUG: formData:', formData);
+    console.log('🚀 DEBUG: storyMode:', formData.storyMode);
+    console.log('🚀 DEBUG: selectedGenre:', formData.selectedGenre);
+    console.log('🚀 DEBUG: characterDescription:', formData.characterDescription);
+    console.log('🚀 DEBUG: cartoonizedUrl:', formData.cartoonizedUrl);
+    
     setIsSubmitting(true);
     
     try {
+      console.log('🚀 DEBUG: Getting session...');
       // Get current user session
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('🚀 DEBUG: session:', session?.user?.id ? 'User logged in' : 'No session');
       
       if (formData.storyMode === 'auto') {
+        console.log('🚀 DEBUG: Auto story mode selected');
+        
         // AUTO STORY: Generate complete comic book storybook from genre + character
         if (!session?.user) {
+          console.log('🚀 DEBUG: No user session - showing auth error');
           toast({
             variant: 'destructive',
             title: 'Authentication Required',
@@ -119,6 +132,7 @@ export function MultiStepStoryFormWithJobs() {
 
         // Validate auto story requirements
         if (!formData.selectedGenre) {
+          console.log('🚀 DEBUG: No genre selected - showing error');
           toast({
             variant: 'destructive',
             title: 'Missing Information',
@@ -129,6 +143,7 @@ export function MultiStepStoryFormWithJobs() {
         }
 
         if (!formData.characterDescription) {
+          console.log('🚀 DEBUG: No character description - showing error');
           toast({
             variant: 'destructive',
             title: 'Missing Information',
@@ -139,6 +154,7 @@ export function MultiStepStoryFormWithJobs() {
         }
 
         if (!formData.cartoonizedUrl) {
+          console.log('🚀 DEBUG: No cartoonized URL - showing error');
           toast({
             variant: 'destructive',
             title: 'Missing Information',
@@ -150,6 +166,7 @@ export function MultiStepStoryFormWithJobs() {
 
         console.log('🤖 Starting auto story generation with comic book layout...');
         console.log('🎨 Character art style:', formData.cartoonStyle);
+        console.log('🚀 DEBUG: About to call api.startAutoStoryJob...');
         
         // ENHANCED: Pass complete context for comic book generation
         const { jobId: newJobId, pollingUrl: newPollingUrl } = await api.startAutoStoryJob({
@@ -161,6 +178,8 @@ export function MultiStepStoryFormWithJobs() {
           layoutType: 'comic-book-panels', // NEW: Always comic book layout
         });
 
+        console.log('🚀 DEBUG: API call successful, jobId:', newJobId);
+        
         setJobId(newJobId);
         setPollingUrl(newPollingUrl);
 
@@ -170,10 +189,13 @@ export function MultiStepStoryFormWithJobs() {
         });
 
       } else {
+        console.log('🚀 DEBUG: Manual story mode selected');
+        
         // MANUAL STORY: Transform user's story into comic book style storybook
         
         // Validate manual story requirements
         if (!formData.story?.trim()) {
+          console.log('🚀 DEBUG: No story text - showing error');
           toast({
             variant: 'destructive',
             title: 'Missing Information',
@@ -184,6 +206,7 @@ export function MultiStepStoryFormWithJobs() {
         }
 
         if (!formData.cartoonizedUrl) {
+          console.log('🚀 DEBUG: No cartoonized URL for manual story - showing error');
           toast({
             variant: 'destructive',
             title: 'Missing Information',
@@ -195,6 +218,7 @@ export function MultiStepStoryFormWithJobs() {
 
         console.log('📖 Starting manual story transformation to comic book format...');
         console.log('🎨 Character art style:', formData.cartoonStyle);
+        console.log('🚀 DEBUG: About to call api.startStorybookJob...');
 
         // ENHANCED: Pass complete context for comic book generation
         const { jobId: newJobId, pollingUrl: newPollingUrl } = await api.startStorybookJob({
@@ -209,6 +233,8 @@ export function MultiStepStoryFormWithJobs() {
           layoutType: 'comic-book-panels', // NEW: Always comic book layout
         });
 
+        console.log('🚀 DEBUG: Manual story API call successful, jobId:', newJobId);
+        
         setJobId(newJobId);
         setPollingUrl(newPollingUrl);
 
@@ -218,11 +244,13 @@ export function MultiStepStoryFormWithJobs() {
         });
       }
 
+      console.log('🚀 DEBUG: Moving to step 7');
       // Move to progress screen
       setCurrentStep(7);
 
     } catch (error: any) {
       console.error('❌ Story creation failed:', error);
+      console.log('🚀 DEBUG: Error details:', error.message, error.stack);
       toast({
         variant: 'destructive',
         title: 'Creation Failed',
