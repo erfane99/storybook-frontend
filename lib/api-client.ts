@@ -1,4 +1,4 @@
-// Enhanced production-ready API client with comprehensive cartoon management
+// Enhanced production-ready API client with cross-origin authentication support
 import { buildApiUrl } from './api-config';
 
 export interface APIResponse<T = any> {
@@ -250,6 +250,99 @@ class CircuitBreaker {
 const requestCache = new RequestCache();
 const circuitBreaker = new CircuitBreaker();
 
+// NEW: Session management for cross-origin authentication
+class SessionManager {
+  private static instance: SessionManager;
+  private supabaseClient: any = null;
+
+  static getInstance(): SessionManager {
+    if (!SessionManager.instance) {
+      SessionManager.instance = new SessionManager();
+    }
+    return SessionManager.instance;
+  }
+
+  async initializeSupabase() {
+    if (!this.supabaseClient && typeof window !== 'undefined') {
+      try {
+        const { getClientSupabase } = await import('@/lib/supabase/client');
+        this.supabaseClient = getClientSupabase();
+        console.log('🔐 Supabase client initialized for API authentication');
+      } catch (error) {
+        console.error('❌ Failed to initialize Supabase client:', error);
+      }
+    }
+  }
+
+  async getAuthHeaders(): Promise<Record<string, string>> {
+    await this.initializeSupabase();
+    
+    if (!this.supabaseClient) {
+      console.warn('⚠️ No Supabase client available for authentication');
+      return {};
+    }
+
+    try {
+      const { data: { session }, error } = await this.supabaseClient.auth.getSession();
+      
+      if (error) {
+        console.error('❌ Error getting session:', error);
+        return {};
+      }
+
+      if (session?.access_token) {
+        console.log('🔐 Adding Authorization header for authenticated request');
+        return {
+          'Authorization': `Bearer ${session.access_token}`,
+        };
+      }
+
+      console.log('🔐 No active session - making unauthenticated request');
+      return {};
+    } catch (error) {
+      console.error('❌ Error getting auth headers:', error);
+      return {};
+    }
+  }
+
+  async isAuthenticated(): Promise<boolean> {
+    await this.initializeSupabase();
+    
+    if (!this.supabaseClient) return false;
+
+    try {
+      const { data: { session } } = await this.supabaseClient.auth.getSession();
+      return !!session?.access_token;
+    } catch (error) {
+      console.error('❌ Error checking authentication:', error);
+      return false;
+    }
+  }
+
+  async refreshSession(): Promise<boolean> {
+    await this.initializeSupabase();
+    
+    if (!this.supabaseClient) return false;
+
+    try {
+      const { data, error } = await this.supabaseClient.auth.refreshSession();
+      
+      if (error) {
+        console.error('❌ Error refreshing session:', error);
+        return false;
+      }
+
+      return !!data?.session?.access_token;
+    } catch (error) {
+      console.error('❌ Error refreshing session:', error);
+      return false;
+    }
+  }
+}
+
+// Global session manager instance
+const sessionManager = SessionManager.getInstance();
+
 // Custom options interface for our enhanced API request
 interface EnhancedRequestOptions extends RequestInit {
   retries?: number;
@@ -257,10 +350,11 @@ interface EnhancedRequestOptions extends RequestInit {
   enableCache?: boolean;
   cacheTtl?: number;
   timeout?: number;
+  requireAuth?: boolean; // NEW: Flag for endpoints that require authentication
 }
 
 /**
- * Enhanced API request with retry logic, caching, and circuit breaker
+ * Enhanced API request with retry logic, caching, circuit breaker, and cross-origin auth
  */
 async function apiRequest<T = any>(
   endpoint: string,
@@ -272,6 +366,7 @@ async function apiRequest<T = any>(
     enableCache = false,
     cacheTtl = 300000,
     timeout = 30000,
+    requireAuth = false,
     ...fetchOptions
   } = options;
 
@@ -286,9 +381,14 @@ async function apiRequest<T = any>(
     }
   }
 
+  // NEW: Get authentication headers for cross-origin requests
+  const authHeaders = requireAuth ? await sessionManager.getAuthHeaders() : {};
+
   const defaultOptions: RequestInit = {
+    credentials: 'include', // Include cookies when possible (same-origin)
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders, // NEW: Add Authorization header for cross-origin auth
       ...fetchOptions.headers,
     },
     ...fetchOptions,
@@ -304,6 +404,11 @@ async function apiRequest<T = any>(
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
+      console.log(`🌐 Making ${requireAuth ? 'authenticated' : 'public'} request to:`, url);
+      if (requireAuth && authHeaders.Authorization) {
+        console.log('🔐 Using Authorization header for cross-origin authentication');
+      }
+
       const response = await fetch(url, {
         ...defaultOptions,
         signal: controller.signal,
@@ -314,6 +419,22 @@ async function apiRequest<T = any>(
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const isRetryable = response.status >= 500 || response.status === 429;
+        
+        // NEW: Handle authentication errors specifically
+        if (response.status === 401) {
+          console.warn('🔐 Authentication failed - attempting session refresh');
+          
+          if (requireAuth) {
+            const refreshed = await sessionManager.refreshSession();
+            if (refreshed) {
+              console.log('🔐 Session refreshed - retrying request');
+              throw new APIError('Session refreshed, retrying', 401, errorData, true);
+            } else {
+              console.error('🔐 Session refresh failed - user needs to re-authenticate');
+              throw new APIError('Authentication required. Please sign in again.', 401, errorData, false);
+            }
+          }
+        }
         
         throw new APIError(
           errorData.error || `HTTP ${response.status}: ${response.statusText}`,
@@ -365,7 +486,7 @@ async function apiRequest<T = any>(
           error instanceof Error ? error.message : 'Unknown error'
         );
 
-        // Don't retry non-retryable errors
+        // Don't retry non-retryable errors (except for auth refresh)
         if (!lastError.retryable || attempt === retries) {
           throw lastError;
         }
@@ -401,8 +522,15 @@ export async function pollJobStatus(
           ? pollingUrl 
           : buildApiUrl(pollingUrl);
         
+        // NEW: Add auth headers for polling requests
+        const authHeaders = await sessionManager.getAuthHeaders();
+        
         const response = await fetch(fullPollingUrl, {
-          headers: { 'Cache-Control': 'no-cache' },
+          headers: { 
+            'Cache-Control': 'no-cache',
+            ...authHeaders, // Include auth headers for polling
+          },
+          credentials: 'include',
         });
 
         if (!response.ok) {
@@ -451,14 +579,15 @@ export async function pollJobStatus(
   });
 }
 
-// Enhanced API methods
+// Enhanced API methods with proper authentication flags
 export const api = {
-  // Auth endpoints
+  // Auth endpoints (public)
   sendOTP: (phone: string): Promise<OTPResponse> => {
     return apiRequest('api/send-otp', {
       method: 'POST',
       body: JSON.stringify({ phone }),
       retries: 2,
+      requireAuth: false,
     });
   },
 
@@ -467,15 +596,17 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ phone, otp_code }),
       retries: 2,
+      requireAuth: false,
     });
   },
 
-  // Image endpoints
+  // Image endpoints (public)
   uploadImage: (formData: FormData): Promise<UploadImageResponse> => {
     return apiRequest('api/upload-image', {
       method: 'POST',
       body: formData,
       timeout: 60000, // 1 minute for uploads
+      requireAuth: false,
     });
   },
 
@@ -485,10 +616,11 @@ export const api = {
       body: JSON.stringify({ imageUrl }),
       enableCache: true,
       cacheTtl: 600000, // 10 minutes
+      requireAuth: false,
     });
   },
 
-  // NEW: Enhanced character description with AI analysis
+  // NEW: Enhanced character description with AI analysis (public)
   /**
    * Extract detailed character descriptions from images using AI
    * @param request Character description request with options
@@ -504,11 +636,12 @@ export const api = {
         enableCache: true,
         cacheTtl: 3600000, // 1 hour
         timeout: 45000, // 45 seconds for AI processing
+        requireAuth: false,
       })
     );
   },
 
-  // NEW: Save cartoon image with metadata
+  // NEW: Save cartoon image with metadata (AUTHENTICATED)
   /**
    * Save user's chosen cartoon permanently with comprehensive metadata
    * @param request Cartoon save request with metadata
@@ -519,10 +652,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(request),
       retries: 2,
+      requireAuth: true, // NEW: Requires authentication
     });
   },
 
-  // NEW: Get user's cartoon history with filtering and pagination
+  // NEW: Get user's cartoon history with filtering and pagination (AUTHENTICATED)
   /**
    * Fetch user's cartoon history with advanced filtering and pagination
    * @param request Pagination and filtering options
@@ -553,10 +687,11 @@ export const api = {
     return apiRequest(endpoint, {
       enableCache: true,
       cacheTtl: 180000, // 3 minutes
+      requireAuth: true, // NEW: Requires authentication
     });
   },
 
-  // Enhanced cartoonize methods
+  // Enhanced cartoonize methods (public)
   startCartoonizeJob: (
     prompt: string, 
     style: string, 
@@ -565,10 +700,11 @@ export const api = {
     return apiRequest('api/jobs/cartoonize/start', {
       method: 'POST',
       body: JSON.stringify({ prompt, style, imageUrl }),
+      requireAuth: false,
     });
   },
 
-  // NEW: Enhanced cartoonize job status with detailed information
+  // NEW: Enhanced cartoonize job status with detailed information (public)
   /**
    * Get enhanced cartoonize job status with queue position and detailed progress
    * @param jobId Job identifier
@@ -577,11 +713,14 @@ export const api = {
   getEnhancedCartoonizeJobStatus: (jobId: string): Promise<EnhancedCartoonizeJobStatus> => {
     return apiRequest(`api/jobs/cartoonize/status/${jobId}`, {
       enableCache: false, // Always fresh for job status
+      requireAuth: false,
     });
   },
 
   getCartoonizeJobStatus: (jobId: string): Promise<JobStatusResponse> => {
-    return apiRequest(`api/jobs/cartoonize/status/${jobId}`);
+    return apiRequest(`api/jobs/cartoonize/status/${jobId}`, {
+      requireAuth: false,
+    });
   },
 
   cartoonizeImage: async (
@@ -596,7 +735,7 @@ export const api = {
     return result;
   },
 
-  // Story endpoints
+  // Story endpoints (public for basic, authenticated for user-specific)
   generateScenes: (
     story: string, 
     characterImage: string, 
@@ -606,6 +745,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ story, characterImage, audience }),
       timeout: 120000, // 2 minutes for story generation
+      requireAuth: false,
     });
   },
 
@@ -620,6 +760,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
       timeout: 180000, // 3 minutes for auto story
+      requireAuth: true, // NEW: Requires authentication for user stories
     });
   },
 
@@ -636,6 +777,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
       timeout: 180000, // 3 minutes for storybook creation
+      requireAuth: data.user_id ? true : false, // Require auth if user_id provided
     });
   },
 
@@ -644,23 +786,26 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ image_prompt }),
       timeout: 90000, // 90 seconds for image generation
+      requireAuth: false,
     });
   },
 
-  // User storybook endpoints
+  // User storybook endpoints (AUTHENTICATED)
   getUserStorybooks: (token: string) => {
     return apiRequest('api/story/get-user-storybooks', {
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { 'Authorization': `Bearer ${token}` }, // Explicit token override
       enableCache: true,
       cacheTtl: 300000, // 5 minutes
+      requireAuth: true,
     });
   },
 
   getUserStorybookById: (id: string, token: string) => {
     return apiRequest(`api/story/get-user-storybook-by-id?id=${id}`, {
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { 'Authorization': `Bearer ${token}` }, // Explicit token override
       enableCache: true,
       cacheTtl: 600000, // 10 minutes
+      requireAuth: true,
     });
   },
 
@@ -670,19 +815,21 @@ export const api = {
     
     return apiRequest(`api/story/delete-by-id?id=${id}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { 'Authorization': `Bearer ${token}` }, // Explicit token override
+      requireAuth: true,
     });
   },
 
   requestPrint: (storybook_id: string, token: string) => {
     return apiRequest('api/story/request-print', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { 'Authorization': `Bearer ${token}` }, // Explicit token override
       body: JSON.stringify({ storybook_id }),
+      requireAuth: true,
     });
   },
 
-  // Enhanced job endpoints
+  // Enhanced job endpoints (mixed authentication)
   startAutoStoryJob: (data: {
     genre: string;
     characterDescription: string;
@@ -694,6 +841,7 @@ export const api = {
     return apiRequest('api/jobs/auto-story/start', {
       method: 'POST',
       body: JSON.stringify(data),
+      requireAuth: true, // NEW: Requires authentication for user jobs
     });
   },
 
@@ -705,6 +853,7 @@ export const api = {
     return apiRequest('api/jobs/scenes/start', {
       method: 'POST',
       body: JSON.stringify(data),
+      requireAuth: false,
     });
   },
 
@@ -722,27 +871,31 @@ export const api = {
     return apiRequest('api/jobs/storybook/start', {
       method: 'POST',
       body: JSON.stringify(data),
+      requireAuth: true, // NEW: Requires authentication for user jobs
     });
   },
 
   getUserJobs: (token: string) => {
     return apiRequest('api/jobs/user', {
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { 'Authorization': `Bearer ${token}` }, // Explicit token override
       enableCache: true,
       cacheTtl: 30000, // 30 seconds for job lists
+      requireAuth: true,
     });
   },
 
   cancelJob: (jobId: string) => {
     return apiRequest(`api/jobs/cancel/${jobId}`, {
       method: 'POST',
+      requireAuth: false, // Jobs can be cancelled without auth
     });
   },
 
   deleteJob: (jobId: string, token: string) => {
     return apiRequest(`api/jobs/${jobId}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { 'Authorization': `Bearer ${token}` }, // Explicit token override
+      requireAuth: true,
     });
   },
 
@@ -752,6 +905,20 @@ export const api = {
    */
   clearCache: () => {
     requestCache.clear();
+  },
+
+  /**
+   * Check authentication status
+   */
+  checkAuth: async (): Promise<boolean> => {
+    return sessionManager.isAuthenticated();
+  },
+
+  /**
+   * Refresh user session
+   */
+  refreshAuth: async (): Promise<boolean> => {
+    return sessionManager.refreshSession();
   },
 
   /**
@@ -796,9 +963,10 @@ export const api = {
     return apiRequest('api/health', {
       enableCache: true,
       cacheTtl: 60000, // 1 minute
+      requireAuth: false,
     });
   },
 };
 
 // Export utility functions for advanced usage
-export { requestCache, circuitBreaker };
+export { requestCache, circuitBreaker, sessionManager };
