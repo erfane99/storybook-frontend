@@ -331,7 +331,8 @@ async function apiRequest<T = any>(
     } catch (error) {
       clearTimeout(timeoutId);
       
-      if (error.name === 'AbortError') {
+      // FIXED: Proper type checking for error handling
+      if (error instanceof Error && error.name === 'AbortError') {
         throw new APIError('Request timeout', 408, null, true);
       }
       
@@ -356,6 +357,7 @@ async function apiRequest<T = any>(
       try {
         return await executeRequest();
       } catch (error) {
+        // FIXED: Proper type checking for error handling
         lastError = error instanceof APIError ? error : new APIError(
           error instanceof Error ? error.message : 'Unknown error'
         );
