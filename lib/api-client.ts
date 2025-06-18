@@ -1,4 +1,4 @@
-// Clean, production-ready API client
+// Clean, production-ready API client with comic book support
 import { buildApiUrl } from './api-config';
 
 export interface APIResponse<T = any> {
@@ -281,12 +281,14 @@ export const api = {
     });
   },
 
-  // Job endpoints
+  // ENHANCED: Comic book job endpoints
   startAutoStoryJob: (data: {
     genre: string;
     characterDescription: string;
     cartoonImageUrl: string;
     audience: string;
+    characterArtStyle?: string;
+    layoutType?: string;
   }) => {
     return apiRequest('api/jobs/auto-story/start', {
       method: 'POST',
@@ -312,6 +314,9 @@ export const api = {
     pages: any[];
     audience: string;
     isReusedImage: boolean;
+    characterDescription?: string;
+    characterArtStyle?: string;
+    layoutType?: string;
   }) => {
     return apiRequest('api/jobs/storybook/start', {
       method: 'POST',
