@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { RefreshCw, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { RefreshCw, Loader2, CheckCircle, AlertCircle, Save, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api-client';
+import type { CartoonSaveRequest } from '@/lib/api-client';
 
 interface Step4_ConfirmImageProps {
   imageUrl: string;
@@ -21,12 +22,21 @@ export function Step4_ConfirmImage({
   cartoonizedUrl,
   updateFormData,
 }: Step4_ConfirmImageProps) {
+  // Existing state
   const [isGenerating, setIsGenerating] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [currentStatus, setCurrentStatus] = useState<string>('');
+
+  // NEW: Save functionality state
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [permanentUrl, setPermanentUrl] = useState<string | null>(null);
+  const [saveId, setSaveId] = useState<string | null>(null);
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -34,6 +44,9 @@ export function Step4_ConfirmImage({
       generateCartoonImage();
     }
   }, []);
+
+  // Check if this is a reused image (already cartoonized)
+  const isReusedImage = cartoonizedUrl && !isGenerating && !error;
 
   const generateCartoonImage = async () => {
     console.log('🎨 Step4_ConfirmImage: Starting cartoon generation...');
@@ -44,6 +57,11 @@ export function Step4_ConfirmImage({
     setError(null);
     setProgress(0);
     setCurrentStatus('Starting...');
+    // Reset save state when regenerating
+    setIsSaved(false);
+    setSaveError(null);
+    setPermanentUrl(null);
+    setSaveId(null);
 
     try {
       let finalPrompt = prompt;
@@ -86,7 +104,10 @@ export function Step4_ConfirmImage({
       console.log('✅ Cartoonize job completed successfully:', result);
       setProgress(100);
       setCurrentStatus('Complete!');
-      updateFormData({ cartoonizedUrl: result.url });
+      updateFormData({ 
+        cartoonizedUrl: result.url,
+        characterDescription: finalPrompt 
+      });
 
       toast({
         title: 'Success',
@@ -106,6 +127,76 @@ export function Step4_ConfirmImage({
       });
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // NEW: Save cartoon permanently
+  const saveCartoonPermanently = async () => {
+    if (!cartoonizedUrl || !prompt) {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot Save',
+        description: 'Cartoon image and character description are required.',
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      console.log('💾 Saving cartoon permanently...');
+      console.log('💾 Original URL:', imageUrl);
+      console.log('💾 Cartoon URL:', cartoonizedUrl);
+      console.log('💾 Character Description:', prompt);
+      console.log('💾 Art Style:', cartoonStyle);
+
+      const saveRequest: CartoonSaveRequest = {
+        originalImageUrl: imageUrl,
+        cartoonImageUrl: cartoonizedUrl,
+        characterDescription: prompt,
+        artStyle: cartoonStyle,
+        metadata: {
+          processingTime: Date.now(), // Could track actual processing time
+          modelVersion: '1.0',
+          quality: 'high',
+          tags: [cartoonStyle, 'character'],
+        },
+      };
+
+      const saveResponse = await api.saveCartoonImage(saveRequest);
+
+      console.log('✅ Cartoon saved successfully:', saveResponse);
+
+      // Update state
+      setIsSaved(true);
+      setSaveId(saveResponse.id);
+      setPermanentUrl(cartoonizedUrl); // In production, this might be a different permanent URL
+
+      // Update form data with permanent information
+      updateFormData({
+        cartoonizedUrl: permanentUrl || cartoonizedUrl,
+        characterDescription: prompt,
+        cartoonSaveId: saveResponse.id,
+        isPermanentlySaved: true,
+      });
+
+      toast({
+        title: 'Cartoon Saved!',
+        description: 'Your cartoon character has been saved permanently and will be available for future stories.',
+      });
+
+    } catch (error: any) {
+      console.error('❌ Failed to save cartoon:', error);
+      setSaveError(error.message || 'Failed to save cartoon');
+      
+      toast({
+        variant: 'destructive',
+        title: 'Save Failed',
+        description: error.message || 'Failed to save cartoon permanently. You can still continue with the story.',
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -145,12 +236,19 @@ export function Step4_ConfirmImage({
     return null;
   };
 
+  // NEW: Determine if save button should be shown
+  const showSaveButton = cartoonizedUrl && !isGenerating && !error && !isSaved;
+  const canProceed = cartoonizedUrl && !isGenerating;
+
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold mb-2">Review Cartoon Image</h3>
         <p className="text-muted-foreground mb-4">
-          Make sure you're happy with your cartoon image before continuing. You can retry up to 3 times.
+          {isReusedImage 
+            ? "You're using a previously created cartoon character. You can save it again or continue to the next step."
+            : "Make sure you're happy with your cartoon image before continuing. You can retry up to 3 times."
+          }
         </p>
       </div>
 
@@ -206,9 +304,18 @@ export function Step4_ConfirmImage({
                 </div>
               )}
             </div>
-            <p className="text-center text-sm mt-2 text-muted-foreground">
-              Cartoon {isGenerating && `(${Math.round(progress)}%)`}
-            </p>
+            <div className="text-center mt-2">
+              <p className="text-sm text-muted-foreground">
+                Cartoon {isGenerating && `(${Math.round(progress)}%)`}
+              </p>
+              {/* NEW: Save status indicator */}
+              {isSaved && (
+                <div className="flex items-center justify-center gap-1 mt-1">
+                  <Check className="h-3 w-3 text-green-600" />
+                  <span className="text-xs text-green-600">Saved Permanently</span>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -223,11 +330,97 @@ export function Step4_ConfirmImage({
         </Card>
       )}
 
+      {/* NEW: Save section */}
+      {showSaveButton && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="p-4">
+            <div className="flex items-start space-x-3">
+              <Save className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="font-medium text-blue-800 mb-1">
+                  Save Character Permanently
+                </h4>
+                <p className="text-sm text-blue-700 mb-3">
+                  Save this cartoon character to your library for future stories. 
+                  You'll be able to reuse it without regenerating.
+                </p>
+                <Button
+                  onClick={saveCartoonPermanently}
+                  disabled={isSaving}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save & Continue
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* NEW: Save success message */}
+      {isSaved && (
+        <Card className="bg-green-50 border-green-200">
+          <CardContent className="p-4">
+            <div className="flex items-start space-x-3">
+              <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-green-800 mb-1">
+                  Character Saved Successfully!
+                </h4>
+                <p className="text-sm text-green-700">
+                  Your cartoon character has been permanently saved to your library. 
+                  It will appear in your "Previous Images" for future stories.
+                </p>
+                {saveId && (
+                  <p className="text-xs text-green-600 mt-1">
+                    Save ID: {saveId}
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* NEW: Save error message */}
+      {saveError && (
+        <Card className="bg-orange-50 border-orange-200">
+          <CardContent className="p-4">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-orange-800 mb-1">
+                  Save Failed
+                </h4>
+                <p className="text-sm text-orange-700 mb-2">
+                  {saveError}
+                </p>
+                <p className="text-xs text-orange-600">
+                  Don't worry - you can still continue with your story. 
+                  The character just won't be saved for future use.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex justify-between items-center pt-4">
         <Button
           variant="outline"
           onClick={handleRetry}
-          disabled={retryCount >= 3 || isGenerating}
+          disabled={retryCount >= 3 || isGenerating || isSaving}
           className="flex items-center"
         >
           <RefreshCw className="mr-2 h-4 w-4" />
@@ -239,14 +432,28 @@ export function Step4_ConfirmImage({
           )}
         </Button>
 
-        {error && (
-          <div className="text-right">
-            <p className="text-sm text-destructive">{error}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Try regenerating or check your connection
-            </p>
-          </div>
-        )}
+        <div className="text-right">
+          {error && (
+            <div>
+              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Try regenerating or check your connection
+              </p>
+            </div>
+          )}
+          
+          {/* NEW: Proceed status */}
+          {canProceed && (
+            <div className="text-sm text-green-600">
+              ✅ Ready to continue
+              {isSaved && (
+                <div className="text-xs text-muted-foreground">
+                  Character saved permanently
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
