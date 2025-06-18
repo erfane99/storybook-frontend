@@ -60,7 +60,7 @@ export function MultiStepStoryFormWithJobs() {
     onComplete: (result) => {
       toast({
         title: 'Success!',
-        description: 'Your storybook has been created successfully.',
+        description: 'Your comic book storybook has been created successfully.',
       });
 
       // Redirect to the completed storybook
@@ -106,7 +106,7 @@ export function MultiStepStoryFormWithJobs() {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (formData.storyMode === 'auto') {
-        // Handle auto story generation with background jobs
+        // AUTO STORY: Generate complete comic book storybook from genre + character
         if (!session?.user) {
           toast({
             variant: 'destructive',
@@ -117,59 +117,116 @@ export function MultiStepStoryFormWithJobs() {
           return;
         }
 
+        // Validate auto story requirements
+        if (!formData.selectedGenre) {
+          toast({
+            variant: 'destructive',
+            title: 'Missing Information',
+            description: 'Please select a genre for your auto story.',
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (!formData.characterDescription) {
+          toast({
+            variant: 'destructive',
+            title: 'Missing Information',
+            description: 'Character description is required. Please ensure cartoonization completed successfully.',
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (!formData.cartoonizedUrl) {
+          toast({
+            variant: 'destructive',
+            title: 'Missing Information',
+            description: 'Cartoonized character image is required.',
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
+        console.log('🤖 Starting auto story generation with comic book layout...');
+        console.log('🎨 Character art style:', formData.cartoonStyle);
+        
+        // ENHANCED: Pass complete context for comic book generation
         const { jobId: newJobId, pollingUrl: newPollingUrl } = await api.startAutoStoryJob({
-          genre: formData.selectedGenre!,
-          characterDescription: formData.characterDescription!,
-          cartoonImageUrl: formData.cartoonizedUrl!,
+          genre: formData.selectedGenre,
+          characterDescription: formData.characterDescription,
+          cartoonImageUrl: formData.cartoonizedUrl,
           audience: formData.audience,
+          characterArtStyle: formData.cartoonStyle, // NEW: Character art style
+          layoutType: 'comic-book-panels', // NEW: Always comic book layout
         });
 
         setJobId(newJobId);
         setPollingUrl(newPollingUrl);
 
         toast({
-          title: 'Story Generation Started',
-          description: 'Your auto-story is being generated in the background.',
+          title: 'Auto Story Generation Started',
+          description: `Creating your ${formData.selectedGenre} story in comic book format with ${formData.cartoonStyle} style character.`,
         });
 
       } else {
-        // Handle manual story creation with background jobs
+        // MANUAL STORY: Transform user's story into comic book style storybook
         
-        // First generate scenes
-        const { jobId: sceneJobId, pollingUrl: scenePollingUrl } = await api.startScenesJob({
-          story: formData.story,
-          characterImage: formData.cartoonizedUrl!,
-          audience: formData.audience,
-        });
+        // Validate manual story requirements
+        if (!formData.story?.trim()) {
+          toast({
+            variant: 'destructive',
+            title: 'Missing Information',
+            description: 'Please write your story before creating the storybook.',
+          });
+          setIsSubmitting(false);
+          return;
+        }
 
-        // Wait for scenes to complete, then start storybook creation
-        // For now, we'll use the storybook endpoint directly
+        if (!formData.cartoonizedUrl) {
+          toast({
+            variant: 'destructive',
+            title: 'Missing Information',
+            description: 'Cartoonized character image is required.',
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
+        console.log('📖 Starting manual story transformation to comic book format...');
+        console.log('🎨 Character art style:', formData.cartoonStyle);
+
+        // ENHANCED: Pass complete context for comic book generation
         const { jobId: newJobId, pollingUrl: newPollingUrl } = await api.startStorybookJob({
           title: formData.title,
           story: formData.story,
-          characterImage: formData.cartoonizedUrl!,
-          pages: [], // This would be populated from scene generation
+          characterImage: formData.cartoonizedUrl,
+          pages: [], // Empty - worker will generate comic book pages with panels
           audience: formData.audience,
           isReusedImage: true,
+          characterDescription: formData.characterDescription, // NEW: Character description
+          characterArtStyle: formData.cartoonStyle, // NEW: Character art style
+          layoutType: 'comic-book-panels', // NEW: Always comic book layout
         });
 
         setJobId(newJobId);
         setPollingUrl(newPollingUrl);
 
         toast({
-          title: 'Storybook Creation Started',
-          description: 'Your storybook is being created in the background.',
+          title: 'Story Processing Started',
+          description: `Transforming your story into comic book format with ${formData.cartoonStyle} style character.`,
         });
       }
 
-      // Move to the final step to show progress
+      // Move to progress screen
       setCurrentStep(7);
 
     } catch (error: any) {
+      console.error('❌ Story creation failed:', error);
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to start storybook creation',
+        title: 'Creation Failed',
+        description: error.message || 'Failed to start storybook creation. Please try again.',
       });
       setIsSubmitting(false);
     }
@@ -273,9 +330,9 @@ export function MultiStepStoryFormWithJobs() {
         <Card className="w-full max-w-2xl mx-auto">
           <CardContent className="p-8">
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold mb-2">Creating Your Storybook</h2>
+              <h2 className="text-2xl font-bold mb-2">Creating Your Comic Book Storybook</h2>
               <p className="text-muted-foreground">
-                Please wait while we generate your personalized storybook
+                Please wait while we generate your personalized comic book with panel layouts
               </p>
             </div>
 
@@ -316,7 +373,7 @@ export function MultiStepStoryFormWithJobs() {
       <Card className="w-full max-w-md mx-auto rounded-2xl shadow-xl">
         <CardContent className="p-6">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-center mb-2">Create Your Story</h2>
+            <h2 className="text-2xl font-bold text-center mb-2">Create Your Comic Book Story</h2>
             <p className="text-sm text-muted-foreground text-center mb-4">
               Step {currentStep} of 7
             </p>
@@ -353,7 +410,7 @@ export function MultiStepStoryFormWithJobs() {
               Back
             </Button>
 
-            {currentStep < 7 ? (
+            {currentStep < 6 ? (
               <Button
                 onClick={handleNext}
                 disabled={isNextDisabled() || isSubmitting}
@@ -362,7 +419,7 @@ export function MultiStepStoryFormWithJobs() {
                 Next
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-            ) : (
+            ) : currentStep === 6 ? (
               <Button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
@@ -374,10 +431,10 @@ export function MultiStepStoryFormWithJobs() {
                     Starting...
                   </>
                 ) : (
-                  'Create Storybook'
+                  'Create Comic Book'
                 )}
               </Button>
-            )}
+            ) : null}
           </div>
         </CardContent>
       </Card>
