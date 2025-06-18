@@ -250,23 +250,26 @@ class CircuitBreaker {
 const requestCache = new RequestCache();
 const circuitBreaker = new CircuitBreaker();
 
+// Custom options interface for our enhanced API request
+interface EnhancedRequestOptions extends RequestInit {
+  retries?: number;
+  retryDelay?: number;
+  enableCache?: boolean;
+  cacheTtl?: number;
+  timeout?: number;
+}
+
 /**
  * Enhanced API request with retry logic, caching, and circuit breaker
  */
 async function apiRequest<T = any>(
   endpoint: string,
-  options: RequestInit & {
-    retries?: number;
-    retryDelay?: number;
-    cache?: boolean;
-    cacheTtl?: number;
-    timeout?: number;
-  } = {}
+  options: EnhancedRequestOptions = {}
 ): Promise<T> {
   const {
     retries = 3,
     retryDelay = 1000,
-    cache = false,
+    enableCache = false,
     cacheTtl = 300000,
     timeout = 30000,
     ...fetchOptions
@@ -276,7 +279,7 @@ async function apiRequest<T = any>(
   const cacheKey = `${url}-${JSON.stringify(fetchOptions)}`;
 
   // Check cache first
-  if (cache && fetchOptions.method !== 'POST') {
+  if (enableCache && fetchOptions.method !== 'POST') {
     const cached = requestCache.get<T>(cacheKey);
     if (cached) {
       return cached;
@@ -323,7 +326,7 @@ async function apiRequest<T = any>(
       const result = await response.json();
 
       // Cache successful responses
-      if (cache) {
+      if (enableCache) {
         requestCache.set(cacheKey, result, cacheTtl);
       }
 
@@ -480,7 +483,7 @@ export const api = {
     return apiRequest('api/image/describe', {
       method: 'POST',
       body: JSON.stringify({ imageUrl }),
-      cache: true,
+      enableCache: true,
       cacheTtl: 600000, // 10 minutes
     });
   },
@@ -498,7 +501,7 @@ export const api = {
       apiRequest('api/character/describe', {
         method: 'POST',
         body: JSON.stringify(request),
-        cache: true,
+        enableCache: true,
         cacheTtl: 3600000, // 1 hour
         timeout: 45000, // 45 seconds for AI processing
       })
@@ -548,7 +551,7 @@ export const api = {
     const endpoint = `api/cartoon/previous${queryParams.toString() ? `?${queryParams}` : ''}`;
     
     return apiRequest(endpoint, {
-      cache: true,
+      enableCache: true,
       cacheTtl: 180000, // 3 minutes
     });
   },
@@ -573,7 +576,7 @@ export const api = {
    */
   getEnhancedCartoonizeJobStatus: (jobId: string): Promise<EnhancedCartoonizeJobStatus> => {
     return apiRequest(`api/jobs/cartoonize/status/${jobId}`, {
-      cache: false, // Always fresh for job status
+      enableCache: false, // Always fresh for job status
     });
   },
 
@@ -648,7 +651,7 @@ export const api = {
   getUserStorybooks: (token: string) => {
     return apiRequest('api/story/get-user-storybooks', {
       headers: { 'Authorization': `Bearer ${token}` },
-      cache: true,
+      enableCache: true,
       cacheTtl: 300000, // 5 minutes
     });
   },
@@ -656,7 +659,7 @@ export const api = {
   getUserStorybookById: (id: string, token: string) => {
     return apiRequest(`api/story/get-user-storybook-by-id?id=${id}`, {
       headers: { 'Authorization': `Bearer ${token}` },
-      cache: true,
+      enableCache: true,
       cacheTtl: 600000, // 10 minutes
     });
   },
@@ -725,7 +728,7 @@ export const api = {
   getUserJobs: (token: string) => {
     return apiRequest('api/jobs/user', {
       headers: { 'Authorization': `Bearer ${token}` },
-      cache: true,
+      enableCache: true,
       cacheTtl: 30000, // 30 seconds for job lists
     });
   },
@@ -758,7 +761,15 @@ export const api = {
    */
   validateImageUrl: async (url: string): Promise<{ valid: boolean; error?: string }> => {
     try {
-      const response = await fetch(url, { method: 'HEAD', timeout: 10000 });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const response = await fetch(url, { 
+        method: 'HEAD', 
+        signal: controller.signal 
+      });
+      
+      clearTimeout(timeoutId);
       const contentType = response.headers.get('content-type');
       
       if (!response.ok) {
@@ -783,7 +794,7 @@ export const api = {
    */
   getHealthStatus: (): Promise<{ status: string; timestamp: string }> => {
     return apiRequest('api/health', {
-      cache: true,
+      enableCache: true,
       cacheTtl: 60000, // 1 minute
     });
   },
