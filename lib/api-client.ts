@@ -74,38 +74,50 @@ export interface PreviousCartoonsRequest {
   filter?: PreviousCartoonsFilter;
 }
 
+// ✅ FIXED: Updated interfaces to match actual API response structure
 export interface CartoonItem {
   id: string;
-  originalImageUrl: string;
-  cartoonImageUrl: string;
+  originalUrl: string;           // ✅ FIXED: Match API response field name
+  cartoonUrl: string;            // ✅ FIXED: Match API response field name
+  style: string;                 // ✅ FIXED: Match API response field name
   characterDescription: string;
-  artStyle: string;
-  quality: 'standard' | 'high' | 'premium';
-  tags: string[];
+  originalPrompt?: string | null;
+  generationCount: number;
+  cloudinaryPublicId: string;
   createdAt: string;
-  metadata: {
-    processingTime: number;
-    modelVersion: string;
-    fileSize: number;
+  createdAtFormatted: string;
+  quality?: 'standard' | 'high' | 'premium';  // ✅ FIXED: Made optional (backend doesn't always return this)
+  tags?: string[];                             // ✅ FIXED: Made optional (backend doesn't always return this)
+  metadata?: {                                 // ✅ FIXED: Made optional (backend doesn't always return this)
+    processingTime?: number;
+    modelVersion?: string;
+    fileSize?: number;
   };
 }
 
+// ✅ FIXED: Updated response interface to match actual API structure
 export interface PreviousCartoonsResponse {
+  success: boolean;
   cartoons: CartoonItem[];
+  cartoonsByStyle: { [style: string]: CartoonItem[] };
   pagination: {
-    currentPage: number;
+    limit: number;
+    offset: number;
+    totalCount: number;
     totalPages: number;
-    totalItems: number;
-    hasNext: boolean;
+    currentPage: number;
+    hasMore: boolean;
     hasPrevious: boolean;
   };
   filters: {
-    availableStyles: string[];
-    availableQualities: string[];
-    dateRange: {
-      earliest: string;
-      latest: string;
-    };
+    style: string | null;
+    sortBy: string;
+    sortOrder: string;
+  };
+  statistics: {                    // ✅ FIXED: This is where availableStyles is located
+    totalCartoons: number;
+    styleBreakdown: { [style: string]: number };
+    availableStyles: string[];     // ✅ FIXED: Located in statistics, not filters
   };
 }
 
@@ -945,28 +957,3 @@ export const api = {
       
       if (!contentType?.startsWith('image/')) {
         return { valid: false, error: 'URL does not point to an image' };
-      }
-      
-      return { valid: true };
-    } catch (error) {
-      return { 
-        valid: false, 
-        error: error instanceof Error ? error.message : 'Failed to validate image URL' 
-      };
-    }
-  },
-
-  /**
-   * Get API health status
-   */
-  getHealthStatus: (): Promise<{ status: string; timestamp: string }> => {
-    return apiRequest('api/health', {
-      enableCache: true,
-      cacheTtl: 60000, // 1 minute
-      requireAuth: false,
-    });
-  },
-};
-
-// Export utility functions for advanced usage
-export { requestCache, circuitBreaker, sessionManager };
