@@ -957,3 +957,28 @@ export const api = {
       
       if (!contentType?.startsWith('image/')) {
         return { valid: false, error: 'URL does not point to an image' };
+      }
+      
+      return { valid: true };
+    } catch (error) {
+      return { 
+        valid: false, 
+        error: error instanceof Error ? error.message : 'Failed to validate image URL' 
+      };
+    }
+  },
+
+  /**
+   * Get API health status
+   */
+  getHealthStatus: (): Promise<{ status: string; timestamp: string }> => {
+    return apiRequest('api/health', {
+      enableCache: true,
+      cacheTtl: 60000, // 1 minute
+      requireAuth: false,
+    });
+  },
+};
+
+// Export utility functions for advanced usage
+export { requestCache, circuitBreaker, sessionManager };
