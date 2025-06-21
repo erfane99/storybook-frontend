@@ -31,9 +31,12 @@ export interface StoryFormData {
   characterDescription?: string;
   storyMode: 'manual' | 'auto';
   selectedGenre?: string;
-  // NEW: Cartoon management properties
+  // Cartoon management properties
   cartoonSaveId?: string;
   isPermanentlySaved?: boolean;
+  // NEW: Previous image tracking properties
+  isUsingPreviousImage?: boolean;
+  selectedPreviousCartoon?: any;
 }
 
 export function MultiStepStoryFormWithJobs() {
@@ -48,6 +51,9 @@ export function MultiStepStoryFormWithJobs() {
     audience: 'children',
     story: '',
     storyMode: 'manual',
+    // NEW: Initialize tracking properties
+    isUsingPreviousImage: false,
+    selectedPreviousCartoon: null,
   });
 
   const router = useRouter();
@@ -90,13 +96,66 @@ export function MultiStepStoryFormWithJobs() {
     setFormData((prev) => ({ ...prev, ...data }));
   };
 
+  // NEW: Enhanced handleNext with Step 3 skip logic
   const handleNext = () => {
+    console.log('🔄 handleNext called from step:', currentStep);
+    console.log('🔄 isUsingPreviousImage:', formData.isUsingPreviousImage);
+    console.log('🔄 selectedPreviousCartoon style:', formData.selectedPreviousCartoon?.style);
+
+    // Step 2 → Step 3/4 logic with skip functionality
+    if (currentStep === 2) {
+      // Check if user is using a previous image
+      if (formData.isUsingPreviousImage && formData.selectedPreviousCartoon) {
+        console.log('✅ Skipping Step 3 - using previous image with style:', formData.selectedPreviousCartoon.style);
+        
+        // Auto-populate cartoon style from previous image
+        const previousStyle = formData.selectedPreviousCartoon.style;
+        updateFormData({ cartoonStyle: previousStyle });
+        
+        // Skip Step 3 entirely - go directly to Step 4
+        setCurrentStep(4);
+        
+        toast({
+          title: 'Style Auto-Selected',
+          description: `Using ${previousStyle} style from your previous character.`,
+        });
+        
+        return;
+      } else {
+        console.log('📝 Proceeding to Step 3 - new image upload needs style selection');
+        // Normal flow for new image uploads
+        setCurrentStep(3);
+        return;
+      }
+    }
+
+    // Normal progression for all other steps
     if (currentStep < 7) {
       setCurrentStep((prev) => prev + 1);
     }
   };
 
+  // NEW: Enhanced handleBack with Step 3 skip logic
   const handleBack = () => {
+    console.log('🔄 handleBack called from step:', currentStep);
+    console.log('🔄 isUsingPreviousImage:', formData.isUsingPreviousImage);
+
+    // Step 4 → Step 2/3 logic with skip consideration
+    if (currentStep === 4) {
+      // If user used previous image, they skipped Step 3, so go back to Step 2
+      if (formData.isUsingPreviousImage) {
+        console.log('⬅️ Going back to Step 2 - user skipped Step 3');
+        setCurrentStep(2);
+        return;
+      } else {
+        console.log('⬅️ Going back to Step 3 - normal flow');
+        // Normal flow for new image uploads
+        setCurrentStep(3);
+        return;
+      }
+    }
+
+    // Normal back progression for all other steps
     if (currentStep > 1) {
       setCurrentStep((prev) => prev - 1);
     }
@@ -334,6 +393,7 @@ export function MultiStepStoryFormWithJobs() {
     }
   };
 
+  // NEW: Enhanced validation with Step 3 skip consideration
   const isNextDisabled = () => {
     switch (currentStep) {
       case 1:
@@ -341,6 +401,7 @@ export function MultiStepStoryFormWithJobs() {
       case 2:
         return !formData.characterImage && !formData.imageUrl;
       case 3:
+        // Only validate style if we're actually on Step 3 (not skipped)
         return !formData.cartoonStyle;
       case 4:
         return !formData.cartoonizedUrl;
@@ -401,6 +462,20 @@ export function MultiStepStoryFormWithJobs() {
     );
   }
 
+  // NEW: Dynamic step indicator that accounts for skipped steps
+  const getStepIndicator = () => {
+    if (formData.isUsingPreviousImage && currentStep >= 4) {
+      // Adjust step display when Step 3 was skipped
+      return currentStep === 4 ? 3 : currentStep - 1;
+    }
+    return currentStep;
+  };
+
+  const getTotalSteps = () => {
+    // Total steps is 6 when Step 3 is skipped, 7 when it's not
+    return formData.isUsingPreviousImage ? 6 : 7;
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8">
       <Card className="w-full max-w-md mx-auto rounded-2xl shadow-xl">
@@ -408,12 +483,15 @@ export function MultiStepStoryFormWithJobs() {
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-center mb-2">Create Your Comic Book Story</h2>
             <p className="text-sm text-muted-foreground text-center mb-4">
-              Step {currentStep} of 7
+              Step {getStepIndicator()} of {getTotalSteps()}
+              {formData.isUsingPreviousImage && currentStep >= 4 && (
+                <span className="text-xs text-primary ml-2">(Style step skipped)</span>
+              )}
             </p>
             <div className="w-full h-3 bg-gray-200 rounded-full">
               <div
                 className="bg-primary h-3 rounded-full transition-all duration-300"
-                style={{ width: `${(currentStep / 7) * 100}%` }}
+                style={{ width: `${(getStepIndicator() / getTotalSteps()) * 100}%` }}
               />
             </div>
           </div>

@@ -43,6 +43,11 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
       setSelectedCartoon(null);
       setAvailableStyles([]);
       setSelectedStyleFilter('all');
+      // NEW: Reset tracking flags when switching back to upload
+      updateFormData({
+        isUsingPreviousImage: false,
+        selectedPreviousCartoon: null,
+      });
     }
   }, [usePreviousImage]);
 
@@ -74,6 +79,9 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
         characterDescription: undefined,
         cartoonSaveId: undefined,
         isPermanentlySaved: false,
+        // NEW: Reset tracking flags for new upload
+        isUsingPreviousImage: false,
+        selectedPreviousCartoon: null,
       });
 
       toast({
@@ -92,8 +100,10 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
     }
   };
 
+  // NEW: Enhanced handleSelectPrevious with tracking flags
   const handleSelectPrevious = async (cartoon: CartoonItem) => {
     console.log('📸 Selected previous cartoonized image:', cartoon);
+    console.log('🎨 Cartoon style from API:', cartoon.style);
     
     setSelectedCartoon(cartoon);
     setLoadingCharacterDescription(true);
@@ -116,6 +126,18 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
         characterDescription = describeResponse.characterDescription;
       }
 
+      // NEW: Validate that the cartoon has a valid style
+      if (!cartoon.style) {
+        console.warn('⚠️ Selected cartoon has no style information');
+        toast({
+          variant: 'destructive',
+          title: 'Invalid Selection',
+          description: 'This cartoon is missing style information. Please select a different one.',
+        });
+        return;
+      }
+
+      // NEW: Enhanced form data update with tracking flags
       updateFormData({
         imageUrl: cartoon.originalUrl, // ✅ FIXED: Use originalUrl (matches API response)
         cartoonizedUrl: cartoon.cartoonUrl, // ✅ FIXED: Use cartoonUrl (matches API response)
@@ -124,11 +146,19 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
         characterImage: null, // Clear file since we're using URL
         cartoonSaveId: cartoon.id,
         isPermanentlySaved: true,
+        // NEW: Set tracking flags for Step 3 skip logic
+        isUsingPreviousImage: true,
+        selectedPreviousCartoon: cartoon,
       });
+
+      console.log('✅ Previous image tracking flags set:');
+      console.log('   - isUsingPreviousImage: true');
+      console.log('   - selectedPreviousCartoon.style:', cartoon.style);
+      console.log('   - cartoonStyle auto-populated:', cartoon.style);
 
       toast({
         title: 'Previous Character Selected',
-        description: `Using your ${cartoon.style} style character from ${new Date(cartoon.createdAt).toLocaleDateString()}.`,
+        description: `Using your ${cartoon.style} style character from ${new Date(cartoon.createdAt).toLocaleDateString()}. Style selection will be skipped.`,
       });
 
     } catch (error: any) {
@@ -148,6 +178,9 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
         characterImage: null,
         cartoonSaveId: cartoon.id,
         isPermanentlySaved: true,
+        // NEW: Set tracking flags even if description fails
+        isUsingPreviousImage: true,
+        selectedPreviousCartoon: cartoon,
       });
     } finally {
       setLoadingCharacterDescription(false);
@@ -163,6 +196,9 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
       cartoonStyle: '',
       cartoonSaveId: undefined,
       isPermanentlySaved: false,
+      // NEW: Reset tracking flags when clearing selection
+      isUsingPreviousImage: false,
+      selectedPreviousCartoon: null,
     });
     setSelectedCartoon(null);
   };
@@ -537,10 +573,12 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
                       </div>
                     )}
                     
+                    {/* NEW: Skip notification */}
                     <div className="bg-green-100 p-3 rounded-lg">
                       <p className="text-sm text-green-800">
                         ✅ This character is already cartoonized and ready to use! 
-                        You can skip the cartoonization step and proceed directly to story creation.
+                        <br />
+                        <strong>Style selection will be skipped</strong> since this character already has the <strong>{selectedCartoon.style}</strong> style applied.
                       </p>
                     </div>
                   </div>
