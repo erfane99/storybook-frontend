@@ -105,7 +105,7 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
       if (!characterDescription) {
         console.log('🔍 Loading character description for selected cartoon...');
         const describeResponse = await api.describeCharacter({
-          imageUrl: cartoon.cartoonImageUrl,
+          imageUrl: cartoon.cartoonUrl, // ✅ FIXED: Use cartoonUrl (matches API response)
           options: {
             detailLevel: 'detailed',
             includeStyle: true,
@@ -117,10 +117,10 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
       }
 
       updateFormData({
-        imageUrl: cartoon.originalImageUrl,
-        cartoonizedUrl: cartoon.cartoonImageUrl,
+        imageUrl: cartoon.originalUrl, // ✅ FIXED: Use originalUrl (matches API response)
+        cartoonizedUrl: cartoon.cartoonUrl, // ✅ FIXED: Use cartoonUrl (matches API response)
         characterDescription: characterDescription,
-        cartoonStyle: cartoon.artStyle,
+        cartoonStyle: cartoon.style, // ✅ FIXED: Use style (matches API response)
         characterImage: null, // Clear file since we're using URL
         cartoonSaveId: cartoon.id,
         isPermanentlySaved: true,
@@ -128,7 +128,7 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
 
       toast({
         title: 'Previous Character Selected',
-        description: `Using your ${cartoon.artStyle} style character from ${new Date(cartoon.createdAt).toLocaleDateString()}.`,
+        description: `Using your ${cartoon.style} style character from ${new Date(cartoon.createdAt).toLocaleDateString()}.`,
       });
 
     } catch (error: any) {
@@ -141,10 +141,10 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
       
       // Still update form data even if description fails
       updateFormData({
-        imageUrl: cartoon.originalImageUrl,
-        cartoonizedUrl: cartoon.cartoonImageUrl,
+        imageUrl: cartoon.originalUrl, // ✅ FIXED: Use originalUrl
+        cartoonizedUrl: cartoon.cartoonUrl, // ✅ FIXED: Use cartoonUrl
         characterDescription: cartoon.characterDescription || 'Character description unavailable',
-        cartoonStyle: cartoon.artStyle,
+        cartoonStyle: cartoon.style, // ✅ FIXED: Use style
         characterImage: null,
         cartoonSaveId: cartoon.id,
         isPermanentlySaved: true,
@@ -202,7 +202,8 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
       const response = await api.getPreviousCartoons(request);
 
       console.log('✅ Found previous cartoons:', response.cartoons.length);
-      console.log('📊 Available styles:', response.filters.availableStyles);
+      // ✅ FIXED: Use correct API response structure
+      console.log('📊 Available styles:', response.statistics?.availableStyles);
 
       if (resetPage || page === 1) {
         setPreviousCartoons(response.cartoons);
@@ -211,8 +212,9 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
         setPreviousCartoons(prev => [...prev, ...response.cartoons]);
       }
 
-      setHasMore(response.pagination.hasNext);
-      setAvailableStyles(response.filters.availableStyles);
+      setHasMore(response.pagination?.hasMore || false);
+      // ✅ FIXED: Access availableStyles from statistics, not filters, with proper fallback
+      setAvailableStyles(response.statistics?.availableStyles || []);
       
       if (resetPage) {
         setCurrentPage(1);
@@ -350,17 +352,19 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
                     <CardContent className="p-3">
                       <div className="aspect-square relative rounded overflow-hidden mb-3">
                         <img
-                          src={cartoon.cartoonImageUrl}
-                          alt={`${cartoon.artStyle} character from ${formatDate(cartoon.createdAt)}`}
+                          src={cartoon.cartoonUrl} // ✅ FIXED: Use cartoonUrl (matches API response)
+                          alt={`${cartoon.style} character from ${formatDate(cartoon.createdAt)}`} // ✅ FIXED: Use style
                           className="absolute inset-0 w-full h-full object-cover"
                           loading="lazy"
                         />
                         {/* Quality Badge */}
-                        <div className="absolute top-2 right-2">
-                          <Badge className={`text-xs ${getQualityColor(cartoon.quality)}`}>
-                            {cartoon.quality}
-                          </Badge>
-                        </div>
+                        {cartoon.quality && (
+                          <div className="absolute top-2 right-2">
+                            <Badge className={`text-xs ${getQualityColor(cartoon.quality)}`}>
+                              {cartoon.quality}
+                            </Badge>
+                          </div>
+                        )}
                         {/* Selected Indicator */}
                         {selectedCartoon?.id === cartoon.id && (
                           <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
@@ -375,13 +379,13 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
                       <div className="space-y-1">
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Palette className="h-3 w-3" />
-                          <span className="font-medium">{cartoon.artStyle}</span>
+                          <span className="font-medium">{cartoon.style}</span> {/* ✅ FIXED: Use style */}
                         </div>
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Calendar className="h-3 w-3" />
                           <span>{formatDate(cartoon.createdAt)}</span>
                         </div>
-                        {cartoon.tags.length > 0 && (
+                        {cartoon.tags && cartoon.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {cartoon.tags.slice(0, 2).map(tag => (
                               <Badge key={tag} variant="secondary" className="text-xs px-1 py-0">
@@ -473,7 +477,7 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
                   {/* Character Image */}
                   <div className="aspect-square relative rounded overflow-hidden">
                     <img
-                      src={selectedCartoon.cartoonImageUrl}
+                      src={selectedCartoon.cartoonUrl} // ✅ FIXED: Use cartoonUrl
                       alt="Selected character"
                       className="absolute inset-0 w-full h-full object-cover"
                     />
@@ -484,20 +488,24 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="font-medium text-green-800">Style:</span>
-                        <p className="text-green-700">{selectedCartoon.artStyle}</p>
+                        <p className="text-green-700">{selectedCartoon.style}</p> {/* ✅ FIXED: Use style */}
                       </div>
-                      <div>
-                        <span className="font-medium text-green-800">Quality:</span>
-                        <p className="text-green-700">{selectedCartoon.quality}</p>
-                      </div>
+                      {selectedCartoon.quality && (
+                        <div>
+                          <span className="font-medium text-green-800">Quality:</span>
+                          <p className="text-green-700">{selectedCartoon.quality}</p>
+                        </div>
+                      )}
                       <div>
                         <span className="font-medium text-green-800">Created:</span>
                         <p className="text-green-700">{formatDate(selectedCartoon.createdAt)}</p>
                       </div>
-                      <div>
-                        <span className="font-medium text-green-800">Processing:</span>
-                        <p className="text-green-700">{selectedCartoon.metadata.processingTime}ms</p>
-                      </div>
+                      {selectedCartoon.metadata?.processingTime && (
+                        <div>
+                          <span className="font-medium text-green-800">Processing:</span>
+                          <p className="text-green-700">{selectedCartoon.metadata.processingTime}ms</p>
+                        </div>
+                      )}
                     </div>
                     
                     {/* Character Description */}
@@ -516,7 +524,7 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
                     )}
                     
                     {/* Tags */}
-                    {selectedCartoon.tags.length > 0 && (
+                    {selectedCartoon.tags && selectedCartoon.tags.length > 0 && (
                       <div>
                         <span className="font-medium text-green-800">Tags:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
