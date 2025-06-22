@@ -157,12 +157,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
           .from('profiles')
           .insert(profileData)
           .single();
+const { data: sessionData, error: sessionError } = await client.auth.getSession();
 
-        const { error: insertError } = await withTimeout(
-          insertPromise,
-          TIMEOUTS.DATABASE,
-          'Profile creation'
-        );
+if (sessionError) {
+  setInitializationError(sessionError.message);
+} else if (sessionData?.session?.user) {
+  setUser(sessionData.session.user);
+  await refreshProfile(client, sessionData.session.user.id);
+}
 
         if (insertError && toast) {
           toast({
