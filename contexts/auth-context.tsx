@@ -340,3 +340,4 @@ export function useAuth(): AuthContextType {
   }
   return context;
     }
+    // Test comment - file ends here
