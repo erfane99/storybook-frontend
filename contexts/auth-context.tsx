@@ -217,7 +217,210 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const createProfileIfNotExists = useCallback(async (client: SupabaseClient<Database>, user: User): Promise<void> => {
     try {
-      console.log('👤 [createProfileIfNotExists] Checking if profile exists for user:', user.id);
+      console.log('📝 [saveAnonymousProgress] Saving anonymous progress...');
+      console.log('📝 [saveAnonymousProgress] Progress title:', progress.title);
+      console.log('📝 [saveAnonymousProgress] Progress scenes count:', progress.scenes?.length || 0);
+      
+      // NEW: Apply timeout protection to story insertion
+      console.log(`📝 [saveAnonymousProgress] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to story save...`);
+      
+      const storyPromise = supabase
+        .from('stories')
+        .insert({
+          title: progress.title,
+          raw_text: progress.story,
+          user_id: currentUserRef.current.id,
+        })
+        .select()
+        .single();
+
+      const { data: storyData, error: storyError } = await withTimeout(
+        storyPromise,
+        QUERY_TIMEOUT_MS,
+        'Story save'
+      );
+
+      if (storyError) {
+        console.error('📝 [saveAnonymousProgress] Story insert error:', storyError);
+        throw storyError;
+      }
+
+      console.log('📝 [saveAnonymousProgress] Story saved with ID:', storyData.id);
+
+      if (progress.scenes?.length > 0) {
+        console.log('📝 [saveAnonymousProgress] Saving scenes...');
+        const scenesData = progress.scenes.map((scene, index) => ({
+          story_id: storyData.id,
+          scene_number: index + 1,
+          scene_text: scene.description,
+          generated_image_url: scene.generatedImage,
+        }));
+
+        // NEW: Apply timeout protection to scenes insertion
+        console.log(`📝 [saveAnonymousProgress] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to scenes save...`);
+        
+        const scenesPromise = supabase
+          .from('story_scenes')
+          .insert(scenesData);
+
+        const { error: scenesError } = await withTimeout(
+          scenesPromise,
+          QUERY_TIMEOUT_MS,
+          'Scenes save'
+        );
+
+        if (scenesError) {
+          console.error('📝 [saveAnonymousProgress] Scenes insert error:', scenesError);
+          throw scenesError;
+        }
+
+        console.log('📝 [saveAnonymousProgress] Scenes saved successfully');
+      }
+
+      await updateOnboardingStep('story_created');
+      clearProgress();
+
+      console.log('✅ [saveAnonymousProgress] Anonymous progress saved successfully');
+      if (toast) {
+        toast({
+          title: 'Success',
+          description: 'Your story has been saved to your account!',
+        });
+      }
+    } catch (error: unknown) {
+      const isTimeoutError = error instanceof Error && error.message.includes('timed out');
+      
+      if (isTimeoutError) {
+        console.error('⏰ [saveAnonymousProgress] Story save timed out');
+        console.error('⏰ [saveAnonymousProgress] Progress may be partially saved');
+        
+        if (toast) {
+          toast({
+            variant: 'destructive',
+            title: 'Save Delayed',
+            description: 'Story saving is taking longer than expected. Please check your stories later.',
+          });
+        }
+      } else {
+        console.error('📝 [saveAnonymousProgress] Failed to save story progress:');
+        console.error('  - Error type:', typeof error);
+        console.error('  - Error constructor:', error?.constructor?.name);
+        console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
+        console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+        console.error('  - Full error object:', error);
+        if (toast) {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to save story progress',
+          });
+        }
+      }
+    }
+  }, [supabase, progress, updateOnboardingStep, clearProgress, toast, withTimeout]);
+
+  const signOut = useCallback(async (): Promise<void> => {
+    if (!supabase) {
+      console.error('🔐 [signOut] Cannot sign out - no supabase client');
+      return;
+    }
+    
+    try {
+      console.log('🔐 [signOut] Signing out user...');
+      console.log('🔐 [signOut] Current user:', currentUserRef.current?.id);
+      
+      // NEW: Apply timeout protection to sign out
+      console.log(`🔐 [signOut] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to sign out...`);
+      
+      const signOutPromise = supabase.auth.signOut();
+      const { error } = await withTimeout(
+        signOutPromise,
+        QUERY_TIMEOUT_MS,
+        'Sign out'
+      );
+
+      if (error) {
+        console.error('🔐 [signOut] Sign out error:', error);
+        throw error;
+      }
+      
+      // Reset retry count on successful sign out
+      retryCountRef.current = 0;
+      
+      console.log('✅ [signOut] Sign out successful');
+      if (router) {
+        router.replace('/');
+      }
+    } catch (error: unknown) {
+      const isTimeoutError = error instanceof Error && error.message.includes('timed out');
+      
+      if (isTimeoutError) {
+        console.error('⏰ [signOut] Sign out timed out - forcing local sign out');
+        
+        // Force local sign out even if server request times out
+        setUser(null);
+        setProfile(null);
+        retryCountRef.current = 0;
+        
+        if (router) {
+          router.replace('/');
+        }
+        
+        if (toast) {
+          toast({
+            title: 'Signed Out',
+            description: 'You have been signed out locally. Server sync may be delayed.',
+          });
+        }
+      } else {
+        console.error('🔐 [signOut] Sign out failed:');
+        console.error('  - Error type:', typeof error);
+        console.error('  - Error constructor:', error?.constructor?.name);
+        console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
+        console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+        console.error('  - Full error object:', error);
+        if (toast) {
+          toast({
+            variant: 'destructive',
+            title: 'Sign Out Failed',
+            description: 'Failed to sign out',
+          });
+        }
+        throw error;
+      }
+    }
+  }, [supabase, router, toast, withTimeout]);
+
+  // Show error state if initialization failed
+  if (initializationError) {
+    console.error('🔐 [AuthProvider] Auth initialization failed:', initializationError);
+    // Still provide the context but with error state
+  }
+
+  const contextValue: AuthContextType = {
+    user,
+    profile,
+    isLoading,
+    signOut,
+    saveAnonymousProgress,
+    updateOnboardingStep,
+    refreshProfile,
+  };
+
+  return (
+    <AuthContext.Provider value={contextValue}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}.log('👤 [createProfileIfNotExists] Checking if profile exists for user:', user.id);
       console.log('👤 [createProfileIfNotExists] User email:', user.email);
       console.log('👤 [createProfileIfNotExists] User metadata:', user.user_metadata);
       
@@ -643,209 +846,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      console.log('📝 [saveAnonymousProgress] Saving anonymous progress...');
-      console.log('📝 [saveAnonymousProgress] Progress title:', progress.title);
-      console.log('📝 [saveAnonymousProgress] Progress scenes count:', progress.scenes?.length || 0);
-      
-      // NEW: Apply timeout protection to story insertion
-      console.log(`📝 [saveAnonymousProgress] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to story save...`);
-      
-      const storyPromise = supabase
-        .from('stories')
-        .insert({
-          title: progress.title,
-          raw_text: progress.story,
-          user_id: currentUserRef.current.id,
-        })
-        .select()
-        .single();
-
-      const { data: storyData, error: storyError } = await withTimeout(
-        storyPromise,
-        QUERY_TIMEOUT_MS,
-        'Story save'
-      );
-
-      if (storyError) {
-        console.error('📝 [saveAnonymousProgress] Story insert error:', storyError);
-        throw storyError;
-      }
-
-      console.log('📝 [saveAnonymousProgress] Story saved with ID:', storyData.id);
-
-      if (progress.scenes?.length > 0) {
-        console.log('📝 [saveAnonymousProgress] Saving scenes...');
-        const scenesData = progress.scenes.map((scene, index) => ({
-          story_id: storyData.id,
-          scene_number: index + 1,
-          scene_text: scene.description,
-          generated_image_url: scene.generatedImage,
-        }));
-
-        // NEW: Apply timeout protection to scenes insertion
-        console.log(`📝 [saveAnonymousProgress] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to scenes save...`);
-        
-        const scenesPromise = supabase
-          .from('story_scenes')
-          .insert(scenesData);
-
-        const { error: scenesError } = await withTimeout(
-          scenesPromise,
-          QUERY_TIMEOUT_MS,
-          'Scenes save'
-        );
-
-        if (scenesError) {
-          console.error('📝 [saveAnonymousProgress] Scenes insert error:', scenesError);
-          throw scenesError;
-        }
-
-        console.log('📝 [saveAnonymousProgress] Scenes saved successfully');
-      }
-
-      await updateOnboardingStep('story_created');
-      clearProgress();
-
-      console.log('✅ [saveAnonymousProgress] Anonymous progress saved successfully');
-      if (toast) {
-        toast({
-          title: 'Success',
-          description: 'Your story has been saved to your account!',
-        });
-      }
-    } catch (error: unknown) {
-      const isTimeoutError = error instanceof Error && error.message.includes('timed out');
-      
-      if (isTimeoutError) {
-        console.error('⏰ [saveAnonymousProgress] Story save timed out');
-        console.error('⏰ [saveAnonymousProgress] Progress may be partially saved');
-        
-        if (toast) {
-          toast({
-            variant: 'destructive',
-            title: 'Save Delayed',
-            description: 'Story saving is taking longer than expected. Please check your stories later.',
-          });
-        }
-      } else {
-        console.error('📝 [saveAnonymousProgress] Failed to save story progress:');
-        console.error('  - Error type:', typeof error);
-        console.error('  - Error constructor:', error?.constructor?.name);
-        console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
-        console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-        console.error('  - Full error object:', error);
-        if (toast) {
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Failed to save story progress',
-          });
-        }
-      }
-    }
-  }, [supabase, progress, updateOnboardingStep, clearProgress, toast, withTimeout]);
-
-  const signOut = useCallback(async (): Promise<void> => {
-    if (!supabase) {
-      console.error('🔐 [signOut] Cannot sign out - no supabase client');
-      return;
-    }
-    
-    try {
-      console.log('🔐 [signOut] Signing out user...');
-      console.log('🔐 [signOut] Current user:', currentUserRef.current?.id);
-      
-      // NEW: Apply timeout protection to sign out
-      console.log(`🔐 [signOut] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to sign out...`);
-      
-      const signOutPromise = supabase.auth.signOut();
-      const { error } = await withTimeout(
-        signOutPromise,
-        QUERY_TIMEOUT_MS,
-        'Sign out'
-      );
-
-      if (error) {
-        console.error('🔐 [signOut] Sign out error:', error);
-        throw error;
-      }
-      
-      // Reset retry count on successful sign out
-      retryCountRef.current = 0;
-      
-      console.log('✅ [signOut] Sign out successful');
-      if (router) {
-        router.replace('/');
-      }
-    } catch (error: unknown) {
-      const isTimeoutError = error instanceof Error && error.message.includes('timed out');
-      
-      if (isTimeoutError) {
-        console.error('⏰ [signOut] Sign out timed out - forcing local sign out');
-        
-        // Force local sign out even if server request times out
-        setUser(null);
-        setProfile(null);
-        retryCountRef.current = 0;
-        
-        if (router) {
-          router.replace('/');
-        }
-        
-        if (toast) {
-          toast({
-            title: 'Signed Out',
-            description: 'You have been signed out locally. Server sync may be delayed.',
-          });
-        }
-      } else {
-        console.error('🔐 [signOut] Sign out failed:');
-        console.error('  - Error type:', typeof error);
-        console.error('  - Error constructor:', error?.constructor?.name);
-        console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
-        console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-        console.error('  - Full error object:', error);
-        if (toast) {
-          toast({
-            variant: 'destructive',
-            title: 'Sign Out Failed',
-            description: 'Failed to sign out',
-          });
-        }
-        throw error;
-      }
-    }
-  }, [supabase, router, toast, withTimeout]);
-
-  // Show error state if initialization failed
-  if (initializationError) {
-    console.error('🔐 [AuthProvider] Auth initialization failed:', initializationError);
-    // Still provide the context but with error state
-  }
-
-  const contextValue: AuthContextType = {
-    user,
-    profile,
-    isLoading,
-    signOut,
-    saveAnonymousProgress,
-    updateOnboardingStep,
-    refreshProfile,
-  };
-
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-export function useAuth() {
-  }
-  )
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
+      console
