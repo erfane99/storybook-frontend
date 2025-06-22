@@ -1,56 +1,4 @@
-'use client';
-
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
-import { useStoryProgress } from '@/hooks/use-story-progress';
-import { User, SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/lib/supabase/database.types';
-
-interface Profile {
-  user_id: string;
-  email: string;
-  full_name?: string;
-  avatar_url?: string;
-  onboarding_step: 'not_started' | 'profile_completed' | 'story_created' | 'paid';
-  user_type: 'user' | 'admin';
-  created_at: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  profile: Profile | null;
-  isLoading: boolean;
-  signOut: () => Promise<void>;
-  saveAnonymousProgress: () => Promise<void>;
-  updateOnboardingStep: (step: Profile['onboarding_step']) => Promise<void>;
-  refreshProfile: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const PROFILE_REFRESH_INTERVAL = 60000;
-
-const TIMEOUTS = {
-  AUTH: 15000,
-  DATABASE: 8000,
-  BACKGROUND: 5000,
-  CRITICAL: 20000,
-} as const;
-
-const MAX_RETRY_ATTEMPTS = 2;
-
-export function AuthProvider({ children }: { children: React.ReactNode }): JSX.Element {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
-  const [initializationError, setInitializationError] = useState<string | null>(null);
-  const { progress, clearProgress } = useStoryProgress();
-  const { toast } = useToast();
-  const router = useRouter();
-
-  const currentUserRef = useRef<User | null>(null);
+ useRef<User | null>(null);
   const profileRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const retryCountRef = useRef<number>(0);
 
@@ -391,4 +339,4 @@ export function useAuth(): AuthContextType {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
+    }
