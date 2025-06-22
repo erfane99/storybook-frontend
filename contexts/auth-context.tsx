@@ -157,14 +157,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
           .from('profiles')
           .insert(profileData)
           .single();
-const { data: sessionData, error: sessionError } = await client.auth.getSession();
 
-if (sessionError) {
-  setInitializationError(sessionError.message);
-} else if (sessionData?.session?.user) {
-  setUser(sessionData.session.user);
-  await refreshProfile(client, sessionData.session.user.id);
-}
+        const { error: insertError } = await withTimeout(
+          insertPromise,
+          TIMEOUTS.DATABASE,
+          'Profile creation'
+        );
 
         if (insertError && toast) {
           toast({
@@ -194,13 +192,12 @@ if (sessionError) {
         const client = await getUniversalSupabase();
         setSupabase(client);
 
-        const { data: sessionData } = await withTimeout(
-          client.auth.getSession(),
-          TIMEOUTS.AUTH,
-          'Initial session retrieval'
-        );
+        // Remove timeout for session retrieval to prevent hanging
+        const { data: sessionData, error: sessionError } = await client.auth.getSession();
 
-        if (sessionData?.session?.user) {
+        if (sessionError) {
+          setInitializationError(sessionError.message);
+        } else if (sessionData?.session?.user) {
           setUser(sessionData.session.user);
           await refreshProfile(client, sessionData.session.user.id);
         }
@@ -212,7 +209,7 @@ if (sessionError) {
     };
 
     initSupabase();
-  }, []);
+  }, [refreshProfile]);
 
   useEffect(() => {
     if (!supabase) return;
