@@ -402,11 +402,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log(`🔐 [initSupabase] Applying ${TIMEOUTS.AUTH}ms AUTH timeout protection to session retrieval...`);
         
         const sessionPromise = client.auth.getSession();
-        const { data: sessionData, error: sessionError } = await withTimeout(
-          sessionPromise,
-          TIMEOUTS.AUTH,
-          'Initial session retrieval'
-        );
+      // Remove timeout for session retrieval - let it take as long as needed
+const { data: sessionData, error: sessionError } = await sessionPromise;
         
         const sessionEndTime = Date.now();
         console.log(`🔐 [initSupabase] Step 4 completed in ${sessionEndTime - sessionStartTime}ms`);
