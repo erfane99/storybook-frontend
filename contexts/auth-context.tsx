@@ -30,6 +30,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PROFILE_REFRESH_INTERVAL = 60000; // 1 minute
+const QUERY_TIMEOUT_MS = 8000; // 8 seconds timeout for database queries
+const MAX_RETRY_ATTEMPTS = 2; // Maximum retry attempts for failed queries
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -44,13 +46,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Use refs to avoid dependency issues
   const currentUserRef = useRef<User | null>(null);
   const profileRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const retryCountRef = useRef<number>(0);
 
   // Update ref when user changes
   useEffect(() => {
     currentUserRef.current = user;
   }, [user]);
 
-  // Memoized refresh function to prevent recreation
+  // NEW: Timeout wrapper for database queries
+  const withTimeout = useCallback(<T>(
+    promise: Promise<T>, 
+    timeoutMs: number = QUERY_TIMEOUT_MS,
+    operation: string = 'Database operation'
+  ): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          console.error(`⏰ [withTimeout] ${operation} timed out after ${timeoutMs}ms`);
+          reject(new Error(`${operation} timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      })
+    ]);
+  }, []);
+
+  // NEW: Exponential backoff delay calculation
+  const getRetryDelay = useCallback((attempt: number): number => {
+    return Math.min(1000 * Math.pow(2, attempt), 5000); // Max 5 seconds
+  }, []);
+
+  // NEW: Enhanced refresh function with timeout protection and retry logic
   const refreshProfile = useCallback(async (client = supabase, userId?: string): Promise<void> => {
     const targetUserId = userId || currentUserRef.current?.id;
     
@@ -61,57 +86,134 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    try {
-      console.log('👤 [refreshProfile] Starting profile refresh for user:', targetUserId);
-      console.log('👤 [refreshProfile] Client type:', client.constructor.name);
-      console.log('👤 [refreshProfile] Client auth exists:', !!client.auth);
-      console.log('👤 [refreshProfile] Client from exists:', !!client.from);
-      
-      // Log when Supabase query starts
-      console.log('👤 [refreshProfile] Initiating Supabase query to profiles table...');
-      const queryStartTime = Date.now();
-      
-      // FIXED: Use user_id instead of id to match database schema
-      const { data: profileData, error: profileError } = await client
-        .from('profiles')
-        .select('*')
-        .eq('user_id', targetUserId) // Changed from 'id' to 'user_id'
-        .single();
+    const attemptRefresh = async (attempt: number = 0): Promise<void> => {
+      try {
+        console.log(`👤 [refreshProfile] Starting profile refresh attempt ${attempt + 1}/${MAX_RETRY_ATTEMPTS + 1} for user:`, targetUserId);
+        console.log('👤 [refreshProfile] Client type:', client.constructor.name);
+        console.log('👤 [refreshProfile] Client auth exists:', !!client.auth);
+        console.log('👤 [refreshProfile] Client from exists:', !!client.from);
+        
+        // Log when Supabase query starts
+        console.log('👤 [refreshProfile] Initiating Supabase query to profiles table...');
+        const queryStartTime = Date.now();
+        
+        // NEW: Wrap the Supabase query with timeout protection
+        const queryPromise = client
+          .from('profiles')
+          .select('*')
+          .eq('user_id', targetUserId)
+          .single();
 
-      const queryEndTime = Date.now();
-      console.log(`👤 [refreshProfile] Supabase query completed in ${queryEndTime - queryStartTime}ms`);
-      console.log('👤 [refreshProfile] Query result - data exists:', !!profileData);
-      console.log('👤 [refreshProfile] Query result - error:', profileError);
+        console.log(`👤 [refreshProfile] Query wrapped with ${QUERY_TIMEOUT_MS}ms timeout protection`);
+        
+        // Execute query with timeout protection
+        const { data: profileData, error: profileError } = await withTimeout(
+          queryPromise,
+          QUERY_TIMEOUT_MS,
+          'Profile query'
+        );
 
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('👤 [refreshProfile] Profile fetch error details:');
-        console.error('  - Error code:', profileError.code);
-        console.error('  - Error message:', profileError.message);
-        console.error('  - Error details:', profileError.details);
-        console.error('  - Error hint:', profileError.hint);
-        throw profileError;
+        const queryEndTime = Date.now();
+        console.log(`👤 [refreshProfile] Supabase query completed successfully in ${queryEndTime - queryStartTime}ms`);
+        console.log('👤 [refreshProfile] Query result - data exists:', !!profileData);
+        console.log('👤 [refreshProfile] Query result - error:', profileError);
+
+        // Reset retry count on successful query
+        retryCountRef.current = 0;
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('👤 [refreshProfile] Profile fetch error details:');
+          console.error('  - Error code:', profileError.code);
+          console.error('  - Error message:', profileError.message);
+          console.error('  - Error details:', profileError.details);
+          console.error('  - Error hint:', profileError.hint);
+          throw profileError;
+        }
+
+        if (profileData) {
+          console.log('👤 [refreshProfile] Profile loaded successfully');
+          console.log('👤 [refreshProfile] Profile data keys:', Object.keys(profileData));
+          console.log('👤 [refreshProfile] Profile onboarding_step:', profileData.onboarding_step);
+          console.log('👤 [refreshProfile] Profile user_type:', profileData.user_type);
+          setProfile(profileData as Profile);
+        } else {
+          console.log('👤 [refreshProfile] No profile found for user (PGRST116 - no rows returned)');
+          setProfile(null);
+        }
+
+      } catch (error) {
+        const isTimeoutError = error instanceof Error && error.message.includes('timed out');
+        const isRetryableError = isTimeoutError || (error as any)?.code === 'PGRST301'; // Connection error
+        
+        console.error(`👤 [refreshProfile] Error on attempt ${attempt + 1}:`, {
+          isTimeoutError,
+          isRetryableError,
+          attempt,
+          maxAttempts: MAX_RETRY_ATTEMPTS,
+          errorType: typeof error,
+          errorConstructor: error?.constructor?.name,
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          errorCode: (error as any)?.code,
+          errorStack: error instanceof Error ? error.stack : 'No stack trace',
+        });
+
+        // Handle timeout errors specifically
+        if (isTimeoutError) {
+          console.error(`⏰ [refreshProfile] Query timeout detected on attempt ${attempt + 1}`);
+          console.error(`⏰ [refreshProfile] Timeout frequency: ${retryCountRef.current + 1} consecutive timeouts`);
+          
+          // Track timeout frequency
+          retryCountRef.current++;
+          
+          // Log timeout patterns for debugging
+          if (retryCountRef.current >= 3) {
+            console.error('⏰ [refreshProfile] CRITICAL: Multiple consecutive timeouts detected');
+            console.error('⏰ [refreshProfile] This may indicate a persistent connectivity issue');
+          }
+        }
+
+        // Retry logic for retryable errors
+        if (isRetryableError && attempt < MAX_RETRY_ATTEMPTS) {
+          const retryDelay = getRetryDelay(attempt);
+          console.log(`🔄 [refreshProfile] Retrying in ${retryDelay}ms (attempt ${attempt + 2}/${MAX_RETRY_ATTEMPTS + 1})`);
+          
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return attemptRefresh(attempt + 1);
+        }
+
+        // Final failure handling
+        if (isTimeoutError) {
+          console.error('⏰ [refreshProfile] FINAL TIMEOUT: Profile query consistently timing out');
+          console.error('⏰ [refreshProfile] Implementing graceful fallback - continuing app operation without profile');
+          
+          // Graceful fallback for timeout errors
+          setProfile(null);
+          
+          // Only show toast for persistent timeouts (not single occurrences)
+          if (retryCountRef.current >= 2 && toast) {
+            toast({
+              variant: 'destructive',
+              title: 'Connection Issue',
+              description: 'Profile loading is slow. App will continue without profile data.',
+            });
+          }
+        } else {
+          console.error('👤 [refreshProfile] NON-TIMEOUT ERROR: Profile query failed with non-retryable error');
+          console.error('  - Error type:', typeof error);
+          console.error('  - Error constructor:', error?.constructor?.name);
+          console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
+          console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+          console.error('  - Full error object:', error);
+          
+          // For non-timeout errors, still allow app to continue but don't show toast
+          setProfile(null);
+        }
       }
+    };
 
-      if (profileData) {
-        console.log('👤 [refreshProfile] Profile loaded successfully');
-        console.log('👤 [refreshProfile] Profile data keys:', Object.keys(profileData));
-        console.log('👤 [refreshProfile] Profile onboarding_step:', profileData.onboarding_step);
-        console.log('👤 [refreshProfile] Profile user_type:', profileData.user_type);
-        setProfile(profileData as Profile);
-      } else {
-        console.log('👤 [refreshProfile] No profile found for user (PGRST116 - no rows returned)');
-        setProfile(null);
-      }
-    } catch (error) {
-      console.error('👤 [refreshProfile] Error refreshing profile:');
-      console.error('  - Error type:', typeof error);
-      console.error('  - Error constructor:', error?.constructor?.name);
-      console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      console.error('  - Full error object:', error);
-      // Don't throw - allow app to continue without profile
-    }
-  }, [supabase]);
+    // Start the refresh attempt
+    await attemptRefresh();
+  }, [supabase, withTimeout, getRetryDelay, toast]);
 
   const createProfileIfNotExists = useCallback(async (client: SupabaseClient<Database>, user: User): Promise<void> => {
     try {
@@ -119,13 +221,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('👤 [createProfileIfNotExists] User email:', user.email);
       console.log('👤 [createProfileIfNotExists] User metadata:', user.user_metadata);
       
-      // FIXED: Check if profile already exists using user_id
-      const { data: existingProfile, error: profileCheckError } = await client
+      // NEW: Apply timeout protection to profile existence check
+      const checkStartTime = Date.now();
+      console.log('👤 [createProfileIfNotExists] Applying timeout protection to profile existence check...');
+      
+      const checkPromise = client
         .from('profiles')
-        .select('user_id') // Changed from 'id' to 'user_id'
-        .eq('user_id', user.id) // Changed from 'id' to 'user_id'
+        .select('user_id')
+        .eq('user_id', user.id)
         .single();
 
+      const { data: existingProfile, error: profileCheckError } = await withTimeout(
+        checkPromise,
+        QUERY_TIMEOUT_MS,
+        'Profile existence check'
+      );
+
+      const checkEndTime = Date.now();
+      console.log(`👤 [createProfileIfNotExists] Profile check completed in ${checkEndTime - checkStartTime}ms`);
       console.log('👤 [createProfileIfNotExists] Profile check result:');
       console.log('  - Existing profile:', existingProfile);
       console.log('  - Check error:', profileCheckError);
@@ -136,7 +249,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const currentTime = new Date().toISOString();
         
         const profileData = {
-          user_id: user.id, // Changed from 'id' to 'user_id'
+          user_id: user.id,
           email: user.email || '',
           user_type: 'user' as const,
           onboarding_step: 'not_started' as const,
@@ -147,11 +260,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         console.log('👤 [createProfileIfNotExists] Profile data to insert:', profileData);
         
-        // FIXED: Insert using user_id instead of id
-        const { error: insertError } = await client
+        // NEW: Apply timeout protection to profile creation
+        const insertStartTime = Date.now();
+        console.log('👤 [createProfileIfNotExists] Applying timeout protection to profile creation...');
+        
+        const insertPromise = client
           .from('profiles')
           .insert(profileData)
           .single();
+
+        const { error: insertError } = await withTimeout(
+          insertPromise,
+          QUERY_TIMEOUT_MS,
+          'Profile creation'
+        );
+
+        const insertEndTime = Date.now();
+        console.log(`👤 [createProfileIfNotExists] Profile creation completed in ${insertEndTime - insertStartTime}ms`);
 
         if (insertError) {
           console.error('👤 [createProfileIfNotExists] Error creating user profile:');
@@ -185,14 +310,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('✅ [createProfileIfNotExists] User profile already exists');
       }
     } catch (error) {
-      console.error('👤 [createProfileIfNotExists] Unexpected error:');
-      console.error('  - Error type:', typeof error);
-      console.error('  - Error constructor:', error?.constructor?.name);
-      console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      console.error('  - Full error object:', error);
+      const isTimeoutError = error instanceof Error && error.message.includes('timed out');
+      
+      if (isTimeoutError) {
+        console.error('⏰ [createProfileIfNotExists] Profile creation/check timed out');
+        console.error('⏰ [createProfileIfNotExists] Continuing with graceful fallback');
+        
+        if (toast) {
+          toast({
+            variant: 'destructive',
+            title: 'Profile Setup Delayed',
+            description: 'Profile creation is taking longer than expected. You can continue using the app.',
+          });
+        }
+      } else {
+        console.error('👤 [createProfileIfNotExists] Unexpected error:');
+        console.error('  - Error type:', typeof error);
+        console.error('  - Error constructor:', error?.constructor?.name);
+        console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
+        console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+        console.error('  - Full error object:', error);
+      }
     }
-  }, [toast]);
+  }, [toast, withTimeout]);
 
   // Initialize Supabase client (only runs once)
   useEffect(() => {
@@ -250,7 +390,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('🔐 [initSupabase] Step 4: Getting initial session...');
         const sessionStartTime = Date.now();
         
-        const { data: sessionData, error: sessionError } = await client.auth.getSession();
+        // NEW: Apply timeout protection to initial session retrieval
+        console.log(`🔐 [initSupabase] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to session retrieval...`);
+        
+        const sessionPromise = client.auth.getSession();
+        const { data: sessionData, error: sessionError } = await withTimeout(
+          sessionPromise,
+          QUERY_TIMEOUT_MS,
+          'Initial session retrieval'
+        );
         
         const sessionEndTime = Date.now();
         console.log(`🔐 [initSupabase] Step 4 completed in ${sessionEndTime - sessionStartTime}ms`);
@@ -295,17 +443,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       } catch (error) {
         const initEndTime = Date.now();
-        console.error(`❌ [initSupabase] Initialization failed after ${initEndTime - initStartTime}ms`);
-        console.error('🔐 [initSupabase] Error details:');
-        console.error('  - Error type:', typeof error);
-        console.error('  - Error constructor:', error?.constructor?.name);
-        console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
-        console.error('  - Error code:', (error as any)?.code);
-        console.error('  - Error status:', (error as any)?.status);
-        console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-        console.error('  - Full error object:', error);
+        const isTimeoutError = error instanceof Error && error.message.includes('timed out');
         
-        setInitializationError(error instanceof Error ? error.message : 'Unknown error');
+        if (isTimeoutError) {
+          console.error(`⏰ [initSupabase] Initialization timed out after ${initEndTime - initStartTime}ms`);
+          console.error('⏰ [initSupabase] Continuing with graceful fallback - app will work without initial session');
+          setInitializationError('Session loading timed out - continuing without authentication');
+        } else {
+          console.error(`❌ [initSupabase] Initialization failed after ${initEndTime - initStartTime}ms`);
+          console.error('🔐 [initSupabase] Error details:');
+          console.error('  - Error type:', typeof error);
+          console.error('  - Error constructor:', error?.constructor?.name);
+          console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
+          console.error('  - Error code:', (error as any)?.code);
+          console.error('  - Error status:', (error as any)?.status);
+          console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+          console.error('  - Full error object:', error);
+          
+          setInitializationError(error instanceof Error ? error.message : 'Unknown error');
+        }
       } finally {
         const finalTime = Date.now();
         console.log(`🔐 [initSupabase] Setting isLoading to false after ${finalTime - initStartTime}ms`);
@@ -360,6 +516,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('🔐 [authListener] Processing SIGNED_OUT event');
         setUser(null);
         setProfile(null);
+        // Reset retry count on sign out
+        retryCountRef.current = 0;
       } else if (event === 'TOKEN_REFRESHED') {
         console.log('🔐 [authListener] Processing TOKEN_REFRESHED event');
         if (session?.user) {
@@ -390,8 +548,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       console.log('🔄 [profileInterval] Setting up profile refresh interval for user:', user.id);
       console.log('🔄 [profileInterval] Interval duration:', PROFILE_REFRESH_INTERVAL, 'ms');
+      console.log('🔄 [profileInterval] Query timeout protection:', QUERY_TIMEOUT_MS, 'ms');
       profileRefreshIntervalRef.current = setInterval(() => {
-        console.log('🔄 [profileInterval] Executing periodic profile refresh...');
+        console.log('🔄 [profileInterval] Executing periodic profile refresh with timeout protection...');
         refreshProfile();
       }, PROFILE_REFRESH_INTERVAL);
     } else {
@@ -419,11 +578,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('👤 [updateOnboardingStep] Updating onboarding step to:', step);
       console.log('👤 [updateOnboardingStep] For user:', currentUserRef.current.id);
       
-      // FIXED: Use user_id instead of id in where clause
-      const { error } = await supabase
+      // NEW: Apply timeout protection to onboarding step update
+      console.log(`👤 [updateOnboardingStep] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to update...`);
+      
+      const updatePromise = supabase
         .from('profiles')
         .update({ onboarding_step: step })
-        .eq('user_id', currentUserRef.current.id); // Changed from 'id' to 'user_id'
+        .eq('user_id', currentUserRef.current.id);
+
+      const { error } = await withTimeout(
+        updatePromise,
+        QUERY_TIMEOUT_MS,
+        'Onboarding step update'
+      );
 
       if (error) {
         console.error('👤 [updateOnboardingStep] Update error:', error);
@@ -434,22 +601,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await refreshProfile();
       console.log('✅ [updateOnboardingStep] Onboarding step updated successfully');
     } catch (error: unknown) {
-      console.error('👤 [updateOnboardingStep] Failed to update onboarding step:');
-      console.error('  - Error type:', typeof error);
-      console.error('  - Error constructor:', error?.constructor?.name);
-      console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      console.error('  - Full error object:', error);
-      if (toast) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Failed to update onboarding progress',
-        });
+      const isTimeoutError = error instanceof Error && error.message.includes('timed out');
+      
+      if (isTimeoutError) {
+        console.error('⏰ [updateOnboardingStep] Onboarding step update timed out');
+        console.error('⏰ [updateOnboardingStep] Continuing with graceful fallback');
+        
+        if (toast) {
+          toast({
+            variant: 'destructive',
+            title: 'Update Delayed',
+            description: 'Progress update is taking longer than expected. Changes may appear shortly.',
+          });
+        }
+      } else {
+        console.error('👤 [updateOnboardingStep] Failed to update onboarding step:');
+        console.error('  - Error type:', typeof error);
+        console.error('  - Error constructor:', error?.constructor?.name);
+        console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
+        console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+        console.error('  - Full error object:', error);
+        if (toast) {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to update onboarding progress',
+          });
+        }
+        throw error;
       }
-      throw error;
     }
-  }, [supabase, refreshProfile, toast]);
+  }, [supabase, refreshProfile, toast, withTimeout]);
 
   const saveAnonymousProgress = useCallback(async (): Promise<void> => {
     if (!currentUserRef.current || !progress || !supabase) {
@@ -465,7 +647,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('📝 [saveAnonymousProgress] Progress title:', progress.title);
       console.log('📝 [saveAnonymousProgress] Progress scenes count:', progress.scenes?.length || 0);
       
-      const { data: storyData, error: storyError } = await supabase
+      // NEW: Apply timeout protection to story insertion
+      console.log(`📝 [saveAnonymousProgress] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to story save...`);
+      
+      const storyPromise = supabase
         .from('stories')
         .insert({
           title: progress.title,
@@ -474,6 +659,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         })
         .select()
         .single();
+
+      const { data: storyData, error: storyError } = await withTimeout(
+        storyPromise,
+        QUERY_TIMEOUT_MS,
+        'Story save'
+      );
 
       if (storyError) {
         console.error('📝 [saveAnonymousProgress] Story insert error:', storyError);
@@ -491,9 +682,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           generated_image_url: scene.generatedImage,
         }));
 
-        const { error: scenesError } = await supabase
+        // NEW: Apply timeout protection to scenes insertion
+        console.log(`📝 [saveAnonymousProgress] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to scenes save...`);
+        
+        const scenesPromise = supabase
           .from('story_scenes')
           .insert(scenesData);
+
+        const { error: scenesError } = await withTimeout(
+          scenesPromise,
+          QUERY_TIMEOUT_MS,
+          'Scenes save'
+        );
 
         if (scenesError) {
           console.error('📝 [saveAnonymousProgress] Scenes insert error:', scenesError);
@@ -514,21 +714,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
     } catch (error: unknown) {
-      console.error('📝 [saveAnonymousProgress] Failed to save story progress:');
-      console.error('  - Error type:', typeof error);
-      console.error('  - Error constructor:', error?.constructor?.name);
-      console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      console.error('  - Full error object:', error);
-      if (toast) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Failed to save story progress',
-        });
+      const isTimeoutError = error instanceof Error && error.message.includes('timed out');
+      
+      if (isTimeoutError) {
+        console.error('⏰ [saveAnonymousProgress] Story save timed out');
+        console.error('⏰ [saveAnonymousProgress] Progress may be partially saved');
+        
+        if (toast) {
+          toast({
+            variant: 'destructive',
+            title: 'Save Delayed',
+            description: 'Story saving is taking longer than expected. Please check your stories later.',
+          });
+        }
+      } else {
+        console.error('📝 [saveAnonymousProgress] Failed to save story progress:');
+        console.error('  - Error type:', typeof error);
+        console.error('  - Error constructor:', error?.constructor?.name);
+        console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
+        console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+        console.error('  - Full error object:', error);
+        if (toast) {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to save story progress',
+          });
+        }
       }
     }
-  }, [supabase, progress, updateOnboardingStep, clearProgress, toast]);
+  }, [supabase, progress, updateOnboardingStep, clearProgress, toast, withTimeout]);
 
   const signOut = useCallback(async (): Promise<void> => {
     if (!supabase) {
@@ -540,33 +755,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('🔐 [signOut] Signing out user...');
       console.log('🔐 [signOut] Current user:', currentUserRef.current?.id);
       
-      const { error } = await supabase.auth.signOut();
+      // NEW: Apply timeout protection to sign out
+      console.log(`🔐 [signOut] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to sign out...`);
+      
+      const signOutPromise = supabase.auth.signOut();
+      const { error } = await withTimeout(
+        signOutPromise,
+        QUERY_TIMEOUT_MS,
+        'Sign out'
+      );
+
       if (error) {
         console.error('🔐 [signOut] Sign out error:', error);
         throw error;
       }
+      
+      // Reset retry count on successful sign out
+      retryCountRef.current = 0;
       
       console.log('✅ [signOut] Sign out successful');
       if (router) {
         router.replace('/');
       }
     } catch (error: unknown) {
-      console.error('🔐 [signOut] Sign out failed:');
-      console.error('  - Error type:', typeof error);
-      console.error('  - Error constructor:', error?.constructor?.name);
-      console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      console.error('  - Full error object:', error);
-      if (toast) {
-        toast({
-          variant: 'destructive',
-          title: 'Sign Out Failed',
-          description: 'Failed to sign out',
-        });
+      const isTimeoutError = error instanceof Error && error.message.includes('timed out');
+      
+      if (isTimeoutError) {
+        console.error('⏰ [signOut] Sign out timed out - forcing local sign out');
+        
+        // Force local sign out even if server request times out
+        setUser(null);
+        setProfile(null);
+        retryCountRef.current = 0;
+        
+        if (router) {
+          router.replace('/');
+        }
+        
+        if (toast) {
+          toast({
+            title: 'Signed Out',
+            description: 'You have been signed out locally. Server sync may be delayed.',
+          });
+        }
+      } else {
+        console.error('🔐 [signOut] Sign out failed:');
+        console.error('  - Error type:', typeof error);
+        console.error('  - Error constructor:', error?.constructor?.name);
+        console.error('  - Error message:', error instanceof Error ? error.message : 'Unknown error');
+        console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+        console.error('  - Full error object:', error);
+        if (toast) {
+          toast({
+            variant: 'destructive',
+            title: 'Sign Out Failed',
+            description: 'Failed to sign out',
+          });
+        }
+        throw error;
       }
-      throw error;
     }
-  }, [supabase, router, toast]);
+  }, [supabase, router, toast, withTimeout]);
 
   // Show error state if initialization failed
   if (initializationError) {
