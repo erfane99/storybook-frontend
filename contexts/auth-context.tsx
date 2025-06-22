@@ -40,6 +40,7 @@ const TIMEOUTS = {
 
 const MAX_RETRY_ATTEMPTS = 2;
 
+// Export the AuthProvider component
 export function AuthProvider({ children }: { children: React.ReactNode }): JSX.Element {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -385,6 +386,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
   );
 }
 
+// Export the useAuth hook with explicit typing
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {
