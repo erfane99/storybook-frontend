@@ -30,7 +30,15 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PROFILE_REFRESH_INTERVAL = 60000; // 1 minute
-const QUERY_TIMEOUT_MS = 8000; // 8 seconds timeout for database queries
+
+// NEW: Industry-standard timeout categories
+const TIMEOUTS = {
+  AUTH: 15000,        // 15 seconds for authentication operations (session retrieval, auth state changes)
+  DATABASE: 8000,     // 8 seconds for database queries (profile queries, updates, inserts)
+  BACKGROUND: 5000,   // 5 seconds for non-critical background operations
+  CRITICAL: 20000,    // 20 seconds for essential app functions
+} as const;
+
 const MAX_RETRY_ATTEMPTS = 2; // Maximum retry attempts for failed queries
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -53,10 +61,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     currentUserRef.current = user;
   }, [user]);
 
-  // NEW: Timeout wrapper for database queries
+  // Enhanced timeout wrapper with categorized timeouts
   const withTimeout = useCallback(<T>(
     promise: Promise<T>, 
-    timeoutMs: number = QUERY_TIMEOUT_MS,
+    timeoutMs: number,
     operation: string = 'Database operation'
   ): Promise<T> => {
     return Promise.race([
@@ -70,12 +78,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ]);
   }, []);
 
-  // NEW: Exponential backoff delay calculation
+  // Exponential backoff delay calculation
   const getRetryDelay = useCallback((attempt: number): number => {
     return Math.min(1000 * Math.pow(2, attempt), 5000); // Max 5 seconds
   }, []);
 
-  // NEW: Enhanced refresh function with timeout protection and retry logic
+  // Enhanced refresh function with DATABASE timeout
   const refreshProfile = useCallback(async (client = supabase, userId?: string): Promise<void> => {
     const targetUserId = userId || currentUserRef.current?.id;
     
@@ -97,19 +105,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('👤 [refreshProfile] Initiating Supabase query to profiles table...');
         const queryStartTime = Date.now();
         
-        // NEW: Wrap the Supabase query with timeout protection
+        // Use DATABASE timeout for profile queries
         const queryPromise = client
           .from('profiles')
           .select('*')
           .eq('user_id', targetUserId)
           .single();
 
-        console.log(`👤 [refreshProfile] Query wrapped with ${QUERY_TIMEOUT_MS}ms timeout protection`);
+        console.log(`👤 [refreshProfile] Query wrapped with ${TIMEOUTS.DATABASE}ms DATABASE timeout protection`);
         
-        // Execute query with timeout protection
+        // Execute query with DATABASE timeout protection
         const { data: profileData, error: profileError } = await withTimeout(
           queryPromise,
-          QUERY_TIMEOUT_MS,
+          TIMEOUTS.DATABASE,
           'Profile query'
         );
 
@@ -221,9 +229,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('👤 [createProfileIfNotExists] User email:', user.email);
       console.log('👤 [createProfileIfNotExists] User metadata:', user.user_metadata);
       
-      // NEW: Apply timeout protection to profile existence check
+      // Use DATABASE timeout for profile existence check
       const checkStartTime = Date.now();
-      console.log('👤 [createProfileIfNotExists] Applying timeout protection to profile existence check...');
+      console.log('👤 [createProfileIfNotExists] Applying DATABASE timeout protection to profile existence check...');
       
       const checkPromise = client
         .from('profiles')
@@ -233,7 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const { data: existingProfile, error: profileCheckError } = await withTimeout(
         checkPromise,
-        QUERY_TIMEOUT_MS,
+        TIMEOUTS.DATABASE,
         'Profile existence check'
       );
 
@@ -260,9 +268,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         console.log('👤 [createProfileIfNotExists] Profile data to insert:', profileData);
         
-        // NEW: Apply timeout protection to profile creation
+        // Use DATABASE timeout for profile creation
         const insertStartTime = Date.now();
-        console.log('👤 [createProfileIfNotExists] Applying timeout protection to profile creation...');
+        console.log('👤 [createProfileIfNotExists] Applying DATABASE timeout protection to profile creation...');
         
         const insertPromise = client
           .from('profiles')
@@ -271,7 +279,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const { error: insertError } = await withTimeout(
           insertPromise,
-          QUERY_TIMEOUT_MS,
+          TIMEOUTS.DATABASE,
           'Profile creation'
         );
 
@@ -390,13 +398,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('🔐 [initSupabase] Step 4: Getting initial session...');
         const sessionStartTime = Date.now();
         
-        // NEW: Apply timeout protection to initial session retrieval
-        console.log(`🔐 [initSupabase] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to session retrieval...`);
+        // Use AUTH timeout for initial session retrieval
+        console.log(`🔐 [initSupabase] Applying ${TIMEOUTS.AUTH}ms AUTH timeout protection to session retrieval...`);
         
         const sessionPromise = client.auth.getSession();
         const { data: sessionData, error: sessionError } = await withTimeout(
           sessionPromise,
-          QUERY_TIMEOUT_MS,
+          TIMEOUTS.AUTH,
           'Initial session retrieval'
         );
         
@@ -548,9 +556,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       console.log('🔄 [profileInterval] Setting up profile refresh interval for user:', user.id);
       console.log('🔄 [profileInterval] Interval duration:', PROFILE_REFRESH_INTERVAL, 'ms');
-      console.log('🔄 [profileInterval] Query timeout protection:', QUERY_TIMEOUT_MS, 'ms');
+      console.log('🔄 [profileInterval] Query timeout protection:', TIMEOUTS.DATABASE, 'ms');
       profileRefreshIntervalRef.current = setInterval(() => {
-        console.log('🔄 [profileInterval] Executing periodic profile refresh with timeout protection...');
+        console.log('🔄 [profileInterval] Executing periodic profile refresh with DATABASE timeout protection...');
         refreshProfile();
       }, PROFILE_REFRESH_INTERVAL);
     } else {
@@ -578,8 +586,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('👤 [updateOnboardingStep] Updating onboarding step to:', step);
       console.log('👤 [updateOnboardingStep] For user:', currentUserRef.current.id);
       
-      // NEW: Apply timeout protection to onboarding step update
-      console.log(`👤 [updateOnboardingStep] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to update...`);
+      // Use DATABASE timeout for onboarding step update
+      console.log(`👤 [updateOnboardingStep] Applying ${TIMEOUTS.DATABASE}ms DATABASE timeout protection to update...`);
       
       const updatePromise = supabase
         .from('profiles')
@@ -588,7 +596,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const { error } = await withTimeout(
         updatePromise,
-        QUERY_TIMEOUT_MS,
+        TIMEOUTS.DATABASE,
         'Onboarding step update'
       );
 
@@ -647,8 +655,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('📝 [saveAnonymousProgress] Progress title:', progress.title);
       console.log('📝 [saveAnonymousProgress] Progress scenes count:', progress.scenes?.length || 0);
       
-      // NEW: Apply timeout protection to story insertion
-      console.log(`📝 [saveAnonymousProgress] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to story save...`);
+      // Use DATABASE timeout for story insertion
+      console.log(`📝 [saveAnonymousProgress] Applying ${TIMEOUTS.DATABASE}ms DATABASE timeout protection to story save...`);
       
       const storyPromise = supabase
         .from('stories')
@@ -662,7 +670,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const { data: storyData, error: storyError } = await withTimeout(
         storyPromise,
-        QUERY_TIMEOUT_MS,
+        TIMEOUTS.DATABASE,
         'Story save'
       );
 
@@ -682,8 +690,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           generated_image_url: scene.generatedImage,
         }));
 
-        // NEW: Apply timeout protection to scenes insertion
-        console.log(`📝 [saveAnonymousProgress] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to scenes save...`);
+        // Use DATABASE timeout for scenes insertion
+        console.log(`📝 [saveAnonymousProgress] Applying ${TIMEOUTS.DATABASE}ms DATABASE timeout protection to scenes save...`);
         
         const scenesPromise = supabase
           .from('story_scenes')
@@ -691,7 +699,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const { error: scenesError } = await withTimeout(
           scenesPromise,
-          QUERY_TIMEOUT_MS,
+          TIMEOUTS.DATABASE,
           'Scenes save'
         );
 
@@ -755,13 +763,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('🔐 [signOut] Signing out user...');
       console.log('🔐 [signOut] Current user:', currentUserRef.current?.id);
       
-      // NEW: Apply timeout protection to sign out
-      console.log(`🔐 [signOut] Applying ${QUERY_TIMEOUT_MS}ms timeout protection to sign out...`);
+      // Use AUTH timeout for sign out
+      console.log(`🔐 [signOut] Applying ${TIMEOUTS.AUTH}ms AUTH timeout protection to sign out...`);
       
       const signOutPromise = supabase.auth.signOut();
       const { error } = await withTimeout(
         signOutPromise,
-        QUERY_TIMEOUT_MS,
+        TIMEOUTS.AUTH,
         'Sign out'
       );
 
