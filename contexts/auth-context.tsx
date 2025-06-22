@@ -31,7 +31,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PROFILE_REFRESH_INTERVAL = 60000; // 1 minute
 
-// NEW: Industry-standard timeout categories
+// Industry-standard timeout categories
 const TIMEOUTS = {
   AUTH: 15000,        // 15 seconds for authentication operations (session retrieval, auth state changes)
   DATABASE: 8000,     // 8 seconds for database queries (profile queries, updates, inserts)
@@ -402,8 +402,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log(`🔐 [initSupabase] Applying ${TIMEOUTS.AUTH}ms AUTH timeout protection to session retrieval...`);
         
         const sessionPromise = client.auth.getSession();
-      // Remove timeout for session retrieval - let it take as long as needed
-const { data: sessionData, error: sessionError } = await sessionPromise;
+        const { data: sessionData, error: sessionError } = await withTimeout(
+          sessionPromise,
+          TIMEOUTS.AUTH,
+          'Initial session retrieval'
+        );
         
         const sessionEndTime = Date.now();
         console.log(`🔐 [initSupabase] Step 4 completed in ${sessionEndTime - sessionStartTime}ms`);
