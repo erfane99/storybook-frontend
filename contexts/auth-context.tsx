@@ -41,7 +41,7 @@ const TIMEOUTS = {
 const MAX_RETRY_ATTEMPTS = 2;
 
 // Export the AuthProvider component
-export function AuthProvider({ children }: { children: React.ReactNode }): JSX.Element {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
