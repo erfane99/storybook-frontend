@@ -59,20 +59,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     currentUserRef.current = user;
   }, [user]);
 
-  const withTimeout = useCallback(<T,>(
-    promise: Promise<T>,
+  const withTimeout = useCallback(<TResult,>(
+    promise: Promise<TResult>,
     timeoutMs: number,
     operation: string = 'Database operation'
-  ): Promise<T> => {
-    return Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          console.error(`⏰ [withTimeout] ${operation} timed out after ${timeoutMs}ms`);
-          reject(new Error(`${operation} timed out after ${timeoutMs}ms`));
-        }, timeoutMs);
-      }),
-    ])as Promise<T>;
+  ): Promise<TResult> => {
+    return new Promise<TResult>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        console.error(`⏰ [withTimeout] ${operation} timed out after ${timeoutMs}ms`);
+        reject(new Error(`${operation} timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      promise
+        .then((result) => {
+          clearTimeout(timeoutId);
+          resolve(result);
+        })
+        .catch((error) => {
+          clearTimeout(timeoutId);
+          reject(error);
+        });
+    });
   }, []);
 
   const getRetryDelay = useCallback((attempt: number): number => {
