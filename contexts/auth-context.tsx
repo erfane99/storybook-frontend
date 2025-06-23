@@ -278,7 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     initSupabase();
-  }, [refreshProfile]);
+  }, []);
 
   useEffect(() => {
     if (!supabase) return;
