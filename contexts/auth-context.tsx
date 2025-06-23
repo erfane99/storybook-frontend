@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     await attemptRefresh();
-  }, [supabase, withTimeout, getRetryDelay, toast]);
+  }, [supabase, getRetryDelay, toast]);
 
   const createProfileIfNotExists = useCallback(async (client: SupabaseClient<Database>, user: User): Promise<void> => {
     try {
@@ -183,24 +183,99 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initSupabase = async () => {
+      console.log('🔐 [AuthProvider] Starting Supabase initialization...');
+      console.log('🔐 [AuthProvider] Current URL:', window.location.href);
+      console.log('🔐 [AuthProvider] URL Hash:', window.location.hash);
+      console.log('🔐 [AuthProvider] URL Search:', window.location.search);
+      
       try {
+        console.log('🔐 [AuthProvider] Importing Supabase client...');
         const { getUniversalSupabase } = await import('@/lib/supabase/universal');
+        
+        console.log('🔐 [AuthProvider] Creating Supabase client...');
         const client = await getUniversalSupabase();
+        
+        console.log('🔐 [AuthProvider] ✅ Supabase client created successfully');
+        console.log('🔐 [AuthProvider] Client URL:', client.supabaseUrl);
+        console.log('🔐 [AuthProvider] Client Key (first 10 chars):', client.supabaseKey.substring(0, 10) + '...');
+        
         setSupabase(client);
 
-        // Remove timeout for session retrieval to prevent hanging
+        console.log('🔐 [AuthProvider] Getting current session...');
+        const sessionStart = Date.now();
+        
         const { data: sessionData, error: sessionError } = await client.auth.getSession();
+        
+        const sessionDuration = Date.now() - sessionStart;
+        console.log('🔐 [AuthProvider] Session retrieval took:', sessionDuration + 'ms');
 
         if (sessionError) {
+          console.error('🔐 [AuthProvider] ❌ Session error:', sessionError);
+          console.error('🔐 [AuthProvider] Session error details:', {
+            message: sessionError.message,
+            status: sessionError.status,
+            name: sessionError.name
+          });
           setInitializationError(sessionError.message);
-        } else if (sessionData?.session?.user) {
-          setUser(sessionData.session.user);
-          await refreshProfile(client, sessionData.session.user.id);
+        } else {
+          console.log('🔐 [AuthProvider] ✅ Session retrieved successfully');
+          console.log('🔐 [AuthProvider] Session data structure:', {
+            hasSession: !!sessionData?.session,
+            hasUser: !!sessionData?.session?.user,
+            sessionKeys: sessionData?.session ? Object.keys(sessionData.session) : 'no session'
+          });
+
+          if (sessionData?.session) {
+            console.log('🔐 [AuthProvider] 📋 Session details:', {
+              accessToken: sessionData.session.access_token ? 'present (length: ' + sessionData.session.access_token.length + ')' : 'missing',
+              refreshToken: sessionData.session.refresh_token ? 'present (length: ' + sessionData.session.refresh_token.length + ')' : 'missing',
+              expiresAt: sessionData.session.expires_at,
+              expiresIn: sessionData.session.expires_in,
+              tokenType: sessionData.session.token_type,
+              providerToken: sessionData.session.provider_token ? 'present' : 'missing',
+              providerRefreshToken: sessionData.session.provider_refresh_token ? 'present' : 'missing'
+            });
+
+            if (sessionData.session.user) {
+              console.log('🔐 [AuthProvider] 👤 User object found:', {
+                id: sessionData.session.user.id,
+                email: sessionData.session.user.email,
+                emailConfirmed: sessionData.session.user.email_confirmed_at ? 'confirmed' : 'not confirmed',
+                provider: sessionData.session.user.app_metadata?.provider,
+                providers: sessionData.session.user.app_metadata?.providers,
+                userMetadata: Object.keys(sessionData.session.user.user_metadata || {}),
+                createdAt: sessionData.session.user.created_at,
+                lastSignIn: sessionData.session.user.last_sign_in_at
+              });
+
+              console.log('🔐 [AuthProvider] Setting user state...');
+              setUser(sessionData.session.user);
+              console.log('🔐 [AuthProvider] ✅ User state set successfully');
+
+              console.log('🔐 [AuthProvider] Refreshing user profile...');
+              await refreshProfile(client, sessionData.session.user.id);
+              console.log('🔐 [AuthProvider] ✅ Profile refresh completed');
+            } else {
+              console.log('🔐 [AuthProvider] ⚠️ Session exists but no user object found');
+              console.log('🔐 [AuthProvider] Full session object:', sessionData.session);
+            }
+          } else {
+            console.log('🔐 [AuthProvider] ℹ️ No active session found');
+            console.log('🔐 [AuthProvider] This is normal for unauthenticated users');
+          }
         }
       } catch (error) {
+        console.error('🔐 [AuthProvider] ❌ Initialization failed:', error);
+        console.error('🔐 [AuthProvider] Error details:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : 'No stack trace',
+          name: error instanceof Error ? error.name : 'Unknown error type'
+        });
         setInitializationError((error as Error)?.message ?? 'Initialization failed');
       } finally {
+        console.log('🔐 [AuthProvider] Setting loading to false...');
         setIsLoading(false);
+        console.log('🔐 [AuthProvider] ✅ Initialization complete');
       }
     };
 
@@ -210,24 +285,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!supabase) return;
 
+    console.log('🔐 [AuthProvider] Setting up auth state change listener...');
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔐 [AuthProvider] 🔄 Auth state change detected:', event);
+      console.log('🔐 [AuthProvider] Session in state change:', {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        userId: session?.user?.id,
+        userEmail: session?.user?.email
+      });
+
       if (event === 'SIGNED_IN' && session?.user) {
+        console.log('🔐 [AuthProvider] ✅ SIGNED_IN event - setting user state');
         setUser(session.user);
         await createProfileIfNotExists(supabase, session.user);
         await refreshProfile(supabase, session.user.id);
+        console.log('🔐 [AuthProvider] Redirecting to home page...');
         router.push('/');
       } else if (event === 'SIGNED_OUT') {
+        console.log('🔐 [AuthProvider] 🚪 SIGNED_OUT event - clearing user state');
         setUser(null);
         setProfile(null);
         retryCountRef.current = 0;
       } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        console.log('🔐 [AuthProvider] 🔄 TOKEN_REFRESHED event - updating user state');
         setUser(session.user);
+      } else {
+        console.log('🔐 [AuthProvider] ℹ️ Other auth event:', event, 'Session present:', !!session);
       }
     });
 
+    console.log('🔐 [AuthProvider] ✅ Auth state change listener set up');
+
     return () => {
+      console.log('🔐 [AuthProvider] 🧹 Cleaning up auth state change listener');
       subscription.unsubscribe();
     };
   }, [supabase, router, createProfileIfNotExists, refreshProfile]);
