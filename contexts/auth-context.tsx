@@ -199,81 +199,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         setSupabase(client);
 
-        console.log('🔐 [AuthProvider] Getting current session...');
-        const sessionStart = Date.now();
+        // Industry standard: Try session retrieval with graceful fallback
+        console.log('🔐 [AuthProvider] Attempting session retrieval...');
         
-        const { data: sessionData, error: sessionError } = await client.auth.getSession();
-        
-        const sessionDuration = Date.now() - sessionStart;
-        console.log('🔐 [AuthProvider] Session retrieval took:', sessionDuration + 'ms');
-
-        if (sessionError) {
-          console.error('🔐 [AuthProvider] ❌ Session error:', sessionError);
-          console.error('🔐 [AuthProvider] Session error details:', {
-            message: sessionError.message,
-            status: sessionError.status,
-            name: sessionError.name
-          });
-          setInitializationError(sessionError.message);
-        } else {
-          console.log('🔐 [AuthProvider] ✅ Session retrieved successfully');
-          console.log('🔐 [AuthProvider] Session data structure:', {
-            hasSession: !!sessionData?.session,
-            hasUser: !!sessionData?.session?.user,
-            sessionKeys: sessionData?.session ? Object.keys(sessionData.session) : 'no session'
-          });
-
-          if (sessionData?.session) {
-            console.log('🔐 [AuthProvider] 📋 Session details:', {
-              accessToken: sessionData.session.access_token ? 'present (length: ' + sessionData.session.access_token.length + ')' : 'missing',
-              refreshToken: sessionData.session.refresh_token ? 'present (length: ' + sessionData.session.refresh_token.length + ')' : 'missing',
-              expiresAt: sessionData.session.expires_at,
-              expiresIn: sessionData.session.expires_in,
-              tokenType: sessionData.session.token_type,
-              providerToken: sessionData.session.provider_token ? 'present' : 'missing',
-              providerRefreshToken: sessionData.session.provider_refresh_token ? 'present' : 'missing'
+        try {
+          const { data: sessionData, error: sessionError } = await client.auth.getSession();
+          
+          console.log('🔐 [AuthProvider] ✅ Session call completed');
+          
+          if (sessionError) {
+            console.error('🔐 [AuthProvider] ⚠️ Session error (non-blocking):', sessionError);
+            // Don't treat as fatal - auth events will handle login
+          } else if (sessionData?.session) {
+            console.log('🔐 [AuthProvider] 📋 Session found via getSession');
+            console.log('🔐 [AuthProvider] Session details:', {
+              hasUser: !!sessionData.session.user,
+              accessToken: sessionData.session.access_token ? 'present' : 'missing',
+              expiresAt: sessionData.session.expires_at
             });
 
             if (sessionData.session.user) {
-              console.log('🔐 [AuthProvider] 👤 User object found:', {
-                id: sessionData.session.user.id,
-                email: sessionData.session.user.email,
-                emailConfirmed: sessionData.session.user.email_confirmed_at ? 'confirmed' : 'not confirmed',
-                provider: sessionData.session.user.app_metadata?.provider,
-                providers: sessionData.session.user.app_metadata?.providers,
-                userMetadata: Object.keys(sessionData.session.user.user_metadata || {}),
-                createdAt: sessionData.session.user.created_at,
-                lastSignIn: sessionData.session.user.last_sign_in_at
-              });
-
-              console.log('🔐 [AuthProvider] Setting user state...');
+              console.log('🔐 [AuthProvider] 👤 Setting user from session');
               setUser(sessionData.session.user);
-              console.log('🔐 [AuthProvider] ✅ User state set successfully');
-
-              console.log('🔐 [AuthProvider] Refreshing user profile...');
               await refreshProfile(client, sessionData.session.user.id);
-              console.log('🔐 [AuthProvider] ✅ Profile refresh completed');
-            } else {
-              console.log('🔐 [AuthProvider] ⚠️ Session exists but no user object found');
-              console.log('🔐 [AuthProvider] Full session object:', sessionData.session);
             }
           } else {
-            console.log('🔐 [AuthProvider] ℹ️ No active session found');
-            console.log('🔐 [AuthProvider] This is normal for unauthenticated users');
+            console.log('🔐 [AuthProvider] ℹ️ No session in getSession - will rely on auth events');
           }
+        } catch (sessionRetrievalError) {
+          console.error('🔐 [AuthProvider] ⚠️ Session retrieval failed (graceful fallback):', sessionRetrievalError);
+          console.log('🔐 [AuthProvider] Will rely on auth state events for authentication');
+          // Continue execution - auth events will handle authentication
         }
+        
       } catch (error) {
-        console.error('🔐 [AuthProvider] ❌ Initialization failed:', error);
-        console.error('🔐 [AuthProvider] Error details:', {
-          message: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : 'No stack trace',
-          name: error instanceof Error ? error.name : 'Unknown error type'
-        });
+        console.error('🔐 [AuthProvider] ❌ Critical initialization error:', error);
         setInitializationError((error as Error)?.message ?? 'Initialization failed');
       } finally {
-        console.log('🔐 [AuthProvider] Setting loading to false...');
+        // Industry standard: Always complete loading regardless of session call
+        console.log('🔐 [AuthProvider] Setting loading to false (graceful completion)');
         setIsLoading(false);
-        console.log('🔐 [AuthProvider] ✅ Initialization complete');
+        console.log('🔐 [AuthProvider] ✅ Initialization complete - app ready');
       }
     };
 
