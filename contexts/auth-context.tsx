@@ -196,8 +196,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const client = await getUniversalSupabase();
         
         console.log('🔐 [AuthProvider] ✅ Supabase client created successfully');
-        console.log('🔐 [AuthProvider] Client URL:', client.supabaseUrl);
-        console.log('🔐 [AuthProvider] Client Key (first 10 chars):', client.supabaseKey.substring(0, 10) + '...');
         
         setSupabase(client);
 
