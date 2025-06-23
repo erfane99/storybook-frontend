@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           reject(new Error(`${operation} timed out after ${timeoutMs}ms`));
         }, timeoutMs);
       }),
-    ]);
+    ])as Promise<T>;
   }, []);
 
   const getRetryDelay = useCallback((attempt: number): number => {
