@@ -99,11 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq('user_id', targetUserId)
           .single();
 
-        const { data: profileData, error: profileError } = await withTimeout(
-          queryPromise,
-          TIMEOUTS.DATABASE,
-          'Profile query'
-        );
+        const { data: profileData, error: profileError } = await queryPromise;
 
         retryCountRef.current = 0;
 
@@ -143,11 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('user_id', user.id)
         .single();
 
-      const { data: existingProfile, error: profileCheckError } = await withTimeout(
-        checkPromise,
-        TIMEOUTS.DATABASE,
-        'Profile existence check'
-      );
+      const { data: existingProfile, error: profileCheckError } = await checkPromise;
 
       if (profileCheckError && profileCheckError.code === 'PGRST116') {
         const currentTime = new Date().toISOString();
@@ -166,11 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .insert(profileData)
           .single();
 
-        const { error: insertError } = await withTimeout(
-          insertPromise,
-          TIMEOUTS.DATABASE,
-          'Profile creation'
-        );
+        const { error: insertError } = await insertPromise;
 
         if (insertError && toast) {
           toast({
@@ -191,7 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
     }
-  }, [toast, withTimeout]);
+  }, [toast]);
 
   useEffect(() => {
     const initSupabase = async () => {
@@ -272,7 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .update({ onboarding_step: step })
         .eq('user_id', currentUserRef.current.id);
 
-      const { error } = await withTimeout(updatePromise, TIMEOUTS.DATABASE, 'Onboarding step update');
+      const { error } = await updatePromise;
 
       if (error) throw error;
 
@@ -286,7 +274,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
     }
-  }, [supabase, refreshProfile, toast, withTimeout]);
+  }, [supabase, refreshProfile, toast]);
 
   const saveAnonymousProgress = useCallback(async (): Promise<void> => {
     if (!currentUserRef.current || !progress || !supabase) return;
@@ -302,11 +290,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .select()
         .single();
 
-      const { data: storyData } = await withTimeout(
-        storyPromise,
-        TIMEOUTS.DATABASE,
-        'Story save'
-      );
+      const { data: storyData } = await storyPromise;
 
       if (progress.scenes?.length > 0) {
         const scenesData = progress.scenes.map((scene, index) => ({
@@ -320,7 +304,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from('story_scenes')
           .insert(scenesData);
 
-        await withTimeout(scenesPromise, TIMEOUTS.DATABASE, 'Scenes save');
+        await scenesPromise;
       }
 
       await updateOnboardingStep('story_created');
@@ -341,7 +325,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
     }
-  }, [supabase, progress, updateOnboardingStep, clearProgress, toast, withTimeout]);
+  }, [supabase, progress, updateOnboardingStep, clearProgress, toast]);
 
   const signOut = useCallback(async (): Promise<void> => {
     if (!supabase) return;
@@ -349,7 +333,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const signOutPromise = supabase.auth.signOut();
 
-      const { error } = await withTimeout(signOutPromise, TIMEOUTS.AUTH, 'Sign out');
+      const { error } = await signOutPromise;
 
       if (error) throw error;
 
@@ -374,7 +358,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
     }
-  }, [supabase, router, toast, withTimeout]);
+  }, [supabase, router, toast]);
 
   const contextValue: AuthContextType = {
     user,
