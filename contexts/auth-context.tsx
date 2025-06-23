@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     currentUserRef.current = user;
   }, [user]);
 
-  const withTimeout = useCallback(<T>(
+  const withTimeout = useCallback(<T,>(
     promise: Promise<T>,
     timeoutMs: number,
     operation: string = 'Database operation'
