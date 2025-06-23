@@ -82,7 +82,7 @@ export default function AuthPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://storybook-front.netlify.app/auth/callback',
+          redirectTo: 'https://nzkwrrinpweiqcnzeric.supabase.co/auth/v1/callback',
         },
       });
 
