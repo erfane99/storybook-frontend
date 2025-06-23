@@ -59,6 +59,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     currentUserRef.current = user;
   }, [user]);
 
+  // Industry standard: Clean up OAuth parameters after successful authentication
+  const cleanupOAuthParams = useCallback(() => {
+    const currentUrl = window.location;
+    const hasOAuthParams = currentUrl.search.includes('code=') || 
+                          currentUrl.search.includes('error=') || 
+                          currentUrl.hash.includes('access_token=');
+    
+    if (hasOAuthParams) {
+      console.log('🔐 [AuthProvider] 🧹 Cleaning up OAuth parameters...');
+      // Remove OAuth parameters while preserving the current path
+      const cleanUrl = `${currentUrl.origin}${currentUrl.pathname}`;
+      window.history.replaceState({}, document.title, cleanUrl);
+      console.log('🔐 [AuthProvider] ✅ OAuth parameters cleaned');
+    }
+  }, []);
+
   const withTimeout = useCallback(<TResult,>(
     promise: Promise<TResult>,
     timeoutMs: number,
@@ -265,8 +281,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === 'SIGNED_IN' && session?.user) {
         console.log('🔐 [AuthProvider] ✅ SIGNED_IN event - setting user state');
         setUser(session.user);
+        
+        // Industry standard: Clean up OAuth parameters immediately after successful auth
+        cleanupOAuthParams();
+        
         await createProfileIfNotExists(supabase, session.user);
         await refreshProfile(supabase, session.user.id);
+        
         console.log('🔐 [AuthProvider] Redirecting to home page...');
         router.push('/');
       } else if (event === 'SIGNED_OUT') {
@@ -288,7 +309,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('🔐 [AuthProvider] 🧹 Cleaning up auth state change listener');
       subscription.unsubscribe();
     };
-  }, [supabase, router, createProfileIfNotExists, refreshProfile]);
+  }, [supabase, router, createProfileIfNotExists, refreshProfile, cleanupOAuthParams]);
 
   useEffect(() => {
     if (profileRefreshIntervalRef.current) {
