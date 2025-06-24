@@ -245,9 +245,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error('🔐 [AuthProvider] ⚠️ Background profile operations failed (non-critical):', error);
           });
         
-        // Immediate redirect (don't wait for profile operations)
-        console.log('🔐 [AuthProvider] Redirecting to home page...');
-        router.push('/');
+        // Stay on current page - don't redirect for existing sessions
+        console.log('🔐 [AuthProvider] User authenticated - staying on current page');
         
       } else if (event === 'SIGNED_OUT') {
         console.log('🔐 [AuthProvider] 🚪 User signed out');
