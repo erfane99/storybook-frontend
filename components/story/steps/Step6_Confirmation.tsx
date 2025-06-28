@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { StoryFormData } from '../MultiStepStoryForm';
+import { StoryFormData } from '../MultiStepStoryFormWithJobs';
 import { Check, Loader2, Sparkles, Wand2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
