@@ -60,13 +60,17 @@ export function useJobPolling(
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
+  // ✅ FIX: Add useRef for polling state management to prevent infinite loops
+  const isPollingRef = useRef<boolean>(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastStatusRef = useRef<string | null>(null);
   const lastProgressRef = useRef<number>(-1);
 
-  // Cleanup function
+  // ✅ FIX: Enhanced cleanup function with ref state management
   const cleanup = useCallback(() => {
+    console.log('🧹 Cleanup called - stopping all polling activity');
+    
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -75,7 +79,12 @@ export function useJobPolling(
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+    
+    // ✅ FIX: Update both ref and state
+    isPollingRef.current = false;
     setIsPolling(false);
+    
+    console.log('🧹 Cleanup complete - polling stopped');
   }, []);
 
   // Fetch job status
@@ -150,25 +159,45 @@ export function useJobPolling(
     }
   }, [jobId, pollingUrl, onError, data, onComplete]);
 
-  // Start polling
+  // ✅ FIX: Enhanced startPolling with ref-based guard
   const startPolling = useCallback(() => {
-    if (!jobId || !pollingUrl || isPolling) {
+    // ✅ FIX: Guard clause using ref to prevent multiple polling instances
+    if (!jobId || !pollingUrl || isPollingRef.current) {
+      console.log('🚫 Polling start blocked:', {
+        hasJobId: !!jobId,
+        hasPollingUrl: !!pollingUrl,
+        isAlreadyPolling: isPollingRef.current
+      });
       return;
     }
 
     console.log(`🔄 Starting job polling for: ${jobId} on Railway backend`);
+    
+    // ✅ FIX: Set both ref and state
+    isPollingRef.current = true;
     setIsPolling(true);
     setError(null);
 
     // Initial fetch
     fetchJobStatus().then(jobData => {
       if (jobData) {
+        console.log(`📊 Initial job data: ${jobData.status} at ${jobData.progress}%`);
         setData(jobData);
       }
     });
 
     // Set up polling interval
     intervalRef.current = setInterval(async () => {
+      // ✅ FIX: Check ref state before each poll
+      if (!isPollingRef.current) {
+        console.log('🛑 Polling stopped via ref - clearing interval');
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        return;
+      }
+
       const jobData = await fetchJobStatus();
       
       if (!jobData) {
@@ -227,7 +256,6 @@ export function useJobPolling(
   }, [
     jobId,
     pollingUrl,
-    isPolling,
     pollingInterval,
     fetchJobStatus,
     onStatusChange,
@@ -237,7 +265,7 @@ export function useJobPolling(
     cleanup,
   ]);
 
-  // Stop polling
+  // ✅ FIX: Enhanced stopPolling with ref state management
   const stopPolling = useCallback(() => {
     console.log(`⏹️ Stopping job polling for: ${jobId}`);
     cleanup();
@@ -285,11 +313,12 @@ export function useJobPolling(
     }
   }, [jobId, data, stopPolling]);
 
-  // Auto-start polling when jobId and pollingUrl are available
+  // ✅ FIX: Auto-start polling with ref-based condition to prevent infinite loops
   useEffect(() => {
-    console.log(`🔍 useEffect trigger - autoStart: ${autoStart}, jobId: ${!!jobId}, pollingUrl: ${!!pollingUrl}, isPolling: ${isPolling}`);
+    console.log(`🔍 useEffect trigger - autoStart: ${autoStart}, jobId: ${!!jobId}, pollingUrl: ${!!pollingUrl}, isPollingRef.current: ${isPollingRef.current}`);
     
-    if (autoStart && jobId && pollingUrl && !isPolling) {
+    // ✅ FIX: Use ref instead of state to prevent infinite loop
+    if (autoStart && jobId && pollingUrl && !isPollingRef.current) {
       console.log(`🚀 Auto-starting polling for job: ${jobId}`);
       startPolling();
     }
@@ -297,7 +326,7 @@ export function useJobPolling(
     return () => {
       cleanup();
     };
-  }, [jobId, pollingUrl, autoStart, isPolling, startPolling, cleanup]);
+  }, [jobId, pollingUrl, autoStart, startPolling, cleanup]); // ✅ FIX: Removed isPolling from dependencies
 
   // Cleanup on unmount
   useEffect(() => {
@@ -308,7 +337,7 @@ export function useJobPolling(
 
   return {
     data,
-    isPolling,
+    isPolling, // ✅ Keep state for UI rendering
     error,
     startPolling,
     stopPolling,
