@@ -256,9 +256,10 @@ export default function StorybookPage() {
                         <p className={audienceStyles[storybook.audience].text}>
                           {scene.description}
                         </p>
-                        <p className={audienceStyles[storybook.audience].emotion}>
+                        {/* Emotion narration hidden from UI - only used for AI prompts */}
+                        {/* <p className={audienceStyles[storybook.audience].emotion}>
                           {scene.emotion}
-                        </p>
+                        </p> */}
                       </div>
                     </div>
                   ))}

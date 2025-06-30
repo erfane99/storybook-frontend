@@ -244,9 +244,10 @@ export default function StorybookViewPage() {
                         </div>
                         <div className="space-y-2">
                           <p className="text-lg">{scene.description}</p>
-                          <p className="text-sm text-muted-foreground">
+                          {/* Emotion narration hidden from UI - only used for AI prompts */}
+                          {/* <p className="text-sm text-muted-foreground">
                             Emotion: {scene.emotion}
-                          </p>
+                          </p> */}
                         </div>
                       </div>
                     ))}

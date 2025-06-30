@@ -160,7 +160,8 @@ export default function StoryPreviewPage() {
                   </div>
                   <div className="p-4 bg-background/95">
                     <p className={styles.text}>{scene.description}</p>
-                    <p className={styles.emotion}>{scene.emotion}</p>
+                    {/* Emotion narration hidden from UI - only used for AI prompts */}
+                    {/* <p className={styles.emotion}>{scene.emotion}</p> */}
                   </div>
                 </div>
               ))}
