@@ -108,6 +108,21 @@ export function useJobPolling(
 
       const jobData: JobData = await response.json();
       
+      // ✅ DEBUG LOGGING - Log every response
+      console.log('🔍 POLLING RESPONSE:', {
+        jobId: jobData.jobId,
+        status: jobData.status,
+        progress: jobData.progress,
+        hasResult: !!jobData.result
+      });
+
+      // ✅ DEBUG LOGGING - Check completion condition
+      if (jobData.status === 'completed') {
+        console.log('✅ COMPLETION DETECTED - should stop polling');
+        console.log('🔍 onComplete callback exists:', !!onComplete);
+        console.log('🔍 jobData.result exists:', !!jobData.result);
+      }
+
       // Reset retry count on successful fetch
       setRetryCount(0);
       setError(null);
@@ -133,7 +148,7 @@ export function useJobPolling(
 
       return null;
     }
-  }, [jobId, pollingUrl, onError, data]);
+  }, [jobId, pollingUrl, onError, data, onComplete]);
 
   // Start polling
   const startPolling = useCallback(() => {
@@ -157,14 +172,17 @@ export function useJobPolling(
       const jobData = await fetchJobStatus();
       
       if (!jobData) {
+        console.log('⚠️ No job data received, continuing polling...');
         return;
       }
 
+      console.log(`📊 Setting job data: ${jobData.status} at ${jobData.progress}%`);
       setData(jobData);
 
       // Check for status changes
       if (lastStatusRef.current !== jobData.status) {
         lastStatusRef.current = jobData.status;
+        console.log(`🔄 Status changed to: ${jobData.status}`);
         if (onStatusChange) {
           onStatusChange(jobData.status, jobData);
         }
@@ -173,6 +191,7 @@ export function useJobPolling(
       // Check for progress changes
       if (lastProgressRef.current !== jobData.progress) {
         lastProgressRef.current = jobData.progress;
+        console.log(`📈 Progress changed to: ${jobData.progress}%`);
         if (onProgress) {
           onProgress(jobData.progress, jobData);
         }
@@ -180,16 +199,19 @@ export function useJobPolling(
 
       // Handle completion
       if (jobData.status === 'completed') {
-        console.log(`✅ Job completed: ${jobId}`);
+        console.log(`✅ Job completed: ${jobId} - CALLING CLEANUP`);
         cleanup();
         if (onComplete && jobData.result) {
+          console.log(`🎉 Calling onComplete with result`);
           onComplete(jobData.result, jobData);
+        } else {
+          console.log(`⚠️ onComplete not called - callback: ${!!onComplete}, result: ${!!jobData.result}`);
         }
       }
 
       // Handle failure
       if (jobData.status === 'failed') {
-        console.log(`❌ Job failed: ${jobId}`);
+        console.log(`❌ Job failed: ${jobId} - CALLING CLEANUP`);
         cleanup();
         if (onError && jobData.error) {
           onError(jobData.error, jobData);
@@ -198,7 +220,7 @@ export function useJobPolling(
 
       // Handle cancellation
       if (jobData.status === 'cancelled') {
-        console.log(`🚫 Job cancelled: ${jobId}`);
+        console.log(`🚫 Job cancelled: ${jobId} - CALLING CLEANUP`);
         cleanup();
       }
     }, pollingInterval);
@@ -265,7 +287,10 @@ export function useJobPolling(
 
   // Auto-start polling when jobId and pollingUrl are available
   useEffect(() => {
+    console.log(`🔍 useEffect trigger - autoStart: ${autoStart}, jobId: ${!!jobId}, pollingUrl: ${!!pollingUrl}, isPolling: ${isPolling}`);
+    
     if (autoStart && jobId && pollingUrl && !isPolling) {
+      console.log(`🚀 Auto-starting polling for job: ${jobId}`);
       startPolling();
     }
 
