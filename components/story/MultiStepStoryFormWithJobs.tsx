@@ -44,6 +44,7 @@ export function MultiStepStoryFormWithJobs() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [pollingUrl, setPollingUrl] = useState<string | null>(null);
+  const [jobError, setJobError] = useState<string | null>(null);
   const [formData, setFormData] = useState<StoryFormData>({
     title: '',
     characterImage: null,
@@ -68,6 +69,7 @@ export function MultiStepStoryFormWithJobs() {
     stopPolling,
   } = useJobPolling(jobId, pollingUrl, {
     onComplete: (result) => {
+      console.log('✅ Job completed successfully:', result);
       toast({
         title: 'Success!',
         description: 'Your comic book storybook has been created successfully.',
@@ -80,15 +82,34 @@ export function MultiStepStoryFormWithJobs() {
         router.push('/storybook/library');
       }
     },
-    onError: (error) => {
+    onError: (error, jobData) => {
+      console.log('❌ Job failed with error:', error);
+      console.log('❌ Job data:', jobData);
+      
+      // Store error for display
+      setJobError(error);
+      
+      // Show error toast
       toast({
         variant: 'destructive',
         title: 'Generation Failed',
-        description: error,
+        description: 'Your comic book generation failed. Please see details below.',
       });
+      
+      // Stop submitting state
       setIsSubmitting(false);
-      setJobId(null);
-      setPollingUrl(null);
+      
+      // ✅ FIX: Don't clear jobId/pollingUrl - let polling stop naturally
+      // This prevents the infinite polling loop caused by useEffect restart
+      // The useJobPolling hook already calls cleanup() on failed status
+    },
+    onStatusChange: (status, jobData) => {
+      console.log('🔄 Job status changed:', status, jobData);
+      
+      // Clear error when job status changes from failed
+      if (status !== 'failed' && jobError) {
+        setJobError(null);
+      }
     },
   });
 
@@ -171,6 +192,7 @@ export function MultiStepStoryFormWithJobs() {
     console.log('🚀 DEBUG: cartoonizedUrl:', formData.cartoonizedUrl);
     
     setIsSubmitting(true);
+    setJobError(null); // Clear any previous errors
     
     try {
       console.log('🚀 DEBUG: Getting session...');
@@ -331,6 +353,7 @@ export function MultiStepStoryFormWithJobs() {
         setJobId(null);
         setPollingUrl(null);
         setIsSubmitting(false);
+        setJobError(null);
         
         toast({
           title: 'Cancelled',
@@ -340,6 +363,23 @@ export function MultiStepStoryFormWithJobs() {
         console.error('Failed to cancel job:', error);
       }
     }
+  };
+
+  const handleRetry = () => {
+    console.log('🔄 Retrying job creation...');
+    // Clear error state
+    setJobError(null);
+    setJobId(null);
+    setPollingUrl(null);
+    setIsSubmitting(false);
+    
+    // Go back to submission step
+    setCurrentStep(6);
+    
+    toast({
+      title: 'Ready to Retry',
+      description: 'You can now try creating your comic book again.',
+    });
   };
 
   const renderStep = () => {
@@ -416,8 +456,8 @@ export function MultiStepStoryFormWithJobs() {
     }
   };
 
-  // Show progress tracker if job is running
-  if (currentStep === 7 && (isSubmitting || isPolling)) {
+  // Show progress tracker if job is running or failed
+  if (currentStep === 7 && (isSubmitting || isPolling || jobError)) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8">
         <Card className="w-full max-w-2xl mx-auto">
@@ -445,7 +485,31 @@ export function MultiStepStoryFormWithJobs() {
               />
             )}
 
-            {pollingError && (
+            {/* Enhanced Error Display */}
+            {jobError && (
+              <div className="mt-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-destructive mb-2">Generation Failed</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{jobError}</p>
+                  <div className="flex gap-3 justify-center">
+                    <Button
+                      variant="outline"
+                      onClick={handleRetry}
+                    >
+                      Try Again
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push('/storybook/library')}
+                    >
+                      Go to Library
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {pollingError && !jobError && (
               <div className="mt-6 text-center">
                 <p className="text-destructive mb-4">{pollingError}</p>
                 <Button
