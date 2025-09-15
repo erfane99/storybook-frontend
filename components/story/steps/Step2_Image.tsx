@@ -104,29 +104,44 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
   const handleSelectPrevious = async (cartoon: CartoonItem) => {
     console.log('📸 Selected previous cartoonized image:', cartoon);
     console.log('🎨 Cartoon style from API:', cartoon.style);
+    console.log('📝 Character description from API:', cartoon.characterDescription);
     
     setSelectedCartoon(cartoon);
     setLoadingCharacterDescription(true);
 
     try {
-      // Load character description if not already available
+      // ✅ FIX: Use the character description that comes from the API
       let characterDescription = cartoon.characterDescription;
       
-      if (!characterDescription) {
-        console.log('🔍 Loading character description for selected cartoon...');
-        const describeResponse = await api.describeCharacter({
-          imageUrl: cartoon.cartoonUrl, // ✅ FIXED: Use cartoonUrl (matches API response)
-          options: {
-            detailLevel: 'detailed',
-            includeStyle: true,
-            includeColors: true,
-            includeExpression: true,
-          }
-        });
-        characterDescription = describeResponse.characterDescription;
+      // Only fetch a new description if it's completely missing or too short
+      if (!characterDescription || characterDescription.length < 10) {
+        console.log('⚠️ Character description missing or too short, generating new one...');
+        console.log('   - Provided description:', characterDescription);
+        console.log('   - Length:', characterDescription?.length || 0);
+        
+        try {
+          const describeResponse = await api.describeCharacter({
+            imageUrl: cartoon.cartoonUrl,
+            options: {
+              detailLevel: 'detailed',
+              includeStyle: true,
+              includeColors: true,
+              includeExpression: true,
+            }
+          });
+          characterDescription = describeResponse.characterDescription;
+          console.log('✅ Generated new character description:', characterDescription.substring(0, 100) + '...');
+        } catch (describeError) {
+          console.error('❌ Failed to generate new description:', describeError);
+          // Use whatever we have, even if empty
+          characterDescription = cartoon.characterDescription || '';
+        }
+      } else {
+        console.log('✅ Using existing character description from database');
+        console.log('   - Description length:', characterDescription.length);
       }
 
-      // NEW: Validate that the cartoon has a valid style
+      // Validate that the cartoon has a valid style
       if (!cartoon.style) {
         console.warn('⚠️ Selected cartoon has no style information');
         toast({
@@ -134,19 +149,32 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
           title: 'Invalid Selection',
           description: 'This cartoon is missing style information. Please select a different one.',
         });
+        setLoadingCharacterDescription(false);
         return;
       }
 
-      // NEW: Enhanced form data update with tracking flags
+      // Validate character description quality
+      if (!characterDescription || characterDescription.length < 10) {
+        console.warn('⚠️ Character description is insufficient for quality storybook');
+        toast({
+          variant: 'destructive',
+          title: 'Character Description Missing',
+          description: 'This character lacks a proper description needed for consistency. Please select another character or upload a new image.',
+        });
+        setLoadingCharacterDescription(false);
+        return;
+      }
+
+      // Enhanced form data update with tracking flags
       updateFormData({
-        imageUrl: cartoon.originalUrl, // ✅ FIXED: Use originalUrl (matches API response)
-        cartoonizedUrl: cartoon.cartoonUrl, // ✅ FIXED: Use cartoonUrl (matches API response)
-        characterDescription: characterDescription,
-        cartoonStyle: cartoon.style, // ✅ FIXED: Use style (matches API response)
+        imageUrl: cartoon.originalUrl,
+        cartoonizedUrl: cartoon.cartoonUrl,
+        characterDescription: characterDescription, // ✅ Now properly uses the description from API
+        cartoonStyle: cartoon.style,
         characterImage: null, // Clear file since we're using URL
         cartoonSaveId: cartoon.id,
         isPermanentlySaved: true,
-        // NEW: Set tracking flags for Step 3 skip logic
+        // Set tracking flags for Step 3 skip logic
         isUsingPreviousImage: true,
         selectedPreviousCartoon: cartoon,
       });
