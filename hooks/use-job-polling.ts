@@ -157,17 +157,108 @@ export function useJobPolling(
       
       setRetryCount(prev => prev + 1);
       
-      const errorMessage = err.message || 'Failed to fetch job status';
-      setError(errorMessage);
+      // ✅ FIX: Enhanced error handling with better user messages
+      let errorMessage = 'Failed to fetch job status';
+      let userFriendlyMessage = 'Unable to check job progress. Please wait...';
+      let isRetryable = true;
       
-      // 🔧 FIX: Use ref for stable callback
-      if (onErrorRef.current && data) {
-        onErrorRef.current(errorMessage, data);
+      // Parse different error types for better messaging
+      if (err.message?.includes('HTTP 404')) {
+        errorMessage = 'Job not found';
+        userFriendlyMessage = 'This job could not be found. It may have been deleted or expired.';
+        isRetryable = false;
+      } else if (err.message?.includes('HTTP 401') || err.message?.includes('HTTP 403')) {
+        errorMessage = 'Authentication required';
+        userFriendlyMessage = 'Please sign in to check job status.';
+        isRetryable = false;
+      } else if (err.message?.includes('HTTP 429')) {
+        errorMessage = 'Rate limit exceeded';
+        userFriendlyMessage = 'Too many requests. Slowing down polling...';
+        isRetryable = true;
+      } else if (err.message?.includes('HTTP 500') || err.message?.includes('HTTP 502') || err.message?.includes('HTTP 503')) {
+        errorMessage = 'Server error';
+        userFriendlyMessage = 'The server is having issues. We\'ll keep trying...';
+        isRetryable = true;
+      } else if (err.message?.includes('NetworkError') || err.message?.includes('Failed to fetch')) {
+        errorMessage = 'Network error';
+        userFriendlyMessage = 'Connection issue. Please check your internet.';
+        isRetryable = true;
+      } else if (err.message) {
+        errorMessage = err.message;
+        // Keep generic user message for unknown errors
       }
-
+      
+      // Set detailed error for debugging
+      setError(userFriendlyMessage);
+      
+      // Log detailed error information
+      console.log('📊 Error details:', {
+        errorMessage,
+        userFriendlyMessage,
+        isRetryable,
+        retryCount: retryCount + 1,
+        maxRetries
+      });
+      
+      // Handle non-retryable errors
+      if (!isRetryable) {
+        console.log('🛑 Non-retryable error - stopping polling');
+        cleanup();
+        
+        // Call error callback with enhanced context
+        if (onErrorRef.current) {
+          // Create enhanced error data
+          const errorData: JobData = data || {
+            jobId: jobId || 'unknown',
+            status: 'failed',
+            progress: 0,
+            currentStep: 'Error occurred',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            error: errorMessage
+          };
+          
+          onErrorRef.current(userFriendlyMessage, errorData);
+        }
+        
+        return null;
+      }
+      
+      // Handle retryable errors with exponential backoff
+      if (retryCount >= maxRetries) {
+        const maxRetriesMessage = `Maximum retries (${maxRetries}) exceeded. ${userFriendlyMessage}`;
+        setError(maxRetriesMessage);
+        console.log('🛑 Max retries exceeded - stopping polling');
+        cleanup();
+        
+        // Call error callback
+        if (onErrorRef.current) {
+          const errorData: JobData = data || {
+            jobId: jobId || 'unknown',
+            status: 'failed',
+            progress: 0,
+            currentStep: 'Max retries exceeded',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            error: maxRetriesMessage
+          };
+          
+          onErrorRef.current(maxRetriesMessage, errorData);
+        }
+        
+        return null;
+      }
+      
+      // For retryable errors, we'll continue polling with backoff
+      // The retry mechanism is handled by the polling interval
+      console.log(`⏳ Retryable error - will retry (${retryCount + 1}/${maxRetries})`);
+      
+      // Don't call onError for retryable errors that haven't exceeded max retries
+      // This prevents showing error UI while we're still retrying
+      
       return null;
     }
-  }, [jobId, pollingUrl, data]); // 🔧 FIX: Removed callback from dependencies
+  }, [jobId, pollingUrl, data, retryCount, maxRetries, cleanup]); // ✅ FIX: Added necessary dependencies
 
   // 🔧 FIX: Stable startPolling function
   const startPolling = useCallback(() => {
