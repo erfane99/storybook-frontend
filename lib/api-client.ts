@@ -911,6 +911,34 @@ export const api = {
     });
   },
 
+  // Storybook rating endpoints (AUTHENTICATED)
+  rateStorybook: (storybookId: string, ratingData: {
+    character_consistency: number;
+    story_flow: number;
+    art_quality: number;
+    scene_consistency: number;
+    overall_experience: number;
+    comment?: string;
+    would_recommend: boolean;
+    time_spent_reading: number;
+  }, token: string) => {
+    return apiRequest(`api/storybook/${storybookId}/rate`, {
+      method: 'POST',
+      body: JSON.stringify(ratingData),
+      headers: { 'Authorization': `Bearer ${token}` },
+      requireAuth: true,
+    });
+  },
+
+  getStorybookRating: (storybookId: string, token: string) => {
+    return apiRequest(`api/storybook/${storybookId}/rating`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      enableCache: true,
+      cacheTtl: 300000,
+      requireAuth: true,
+    });
+  },
+
   // NEW: Utility methods for optimization
   /**
    * Clear all cached data

@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
-import { ArrowLeft, Download, Lock, Share2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, Lock, Share2, Loader2, Star } from 'lucide-react';
 import { getClientSupabase } from '@/lib/supabase/client';
 import { api } from '@/lib/api';
+import { RatingModal, RatingData } from '@/components/storybook/RatingModal';
+import { ExistingRating } from '@/components/storybook/ExistingRating';
 
 interface Scene {
   description: string;
@@ -45,6 +47,11 @@ export default function StorybookViewPage() {
   const { toast } = useToast();
   const [storybook, setStorybook] = useState<Storybook | null>(null);
   const [loading, setLoading] = useState(true);
+  const [existingRating, setExistingRating] = useState<RatingData | null>(null);
+  const [ratingModalOpen, setRatingModalOpen] = useState(false);
+  const [loadingRating, setLoadingRating] = useState(false);
+  const readingStartTimeRef = useRef<number>(Date.now());
+  const autoShowTimerRef = useRef<NodeJS.Timeout | null>(null);
   const supabase = getClientSupabase();
 
   useEffect(() => {
@@ -80,6 +87,79 @@ export default function StorybookViewPage() {
 
     fetchStorybook();
   }, [user, params.id, router, supabase, toast]);
+
+  useEffect(() => {
+    if (!storybook || !user) return;
+
+    async function fetchRating() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+
+        const response = await api.getStorybookRating(params.id as string, session.access_token);
+        if (response.rating) {
+          setExistingRating(response.rating);
+        }
+      } catch (error: any) {
+        if (error.status !== 404) {
+          console.error('Failed to fetch rating:', error);
+        }
+      }
+    }
+
+    fetchRating();
+  }, [storybook, user, params.id, supabase]);
+
+  useEffect(() => {
+    if (!storybook || existingRating) return;
+
+    const hasRatedKey = `rated-storybook-${params.id}`;
+    const hasRated = localStorage.getItem(hasRatedKey);
+
+    if (!hasRated) {
+      autoShowTimerRef.current = setTimeout(() => {
+        setRatingModalOpen(true);
+      }, 4000);
+    }
+
+    return () => {
+      if (autoShowTimerRef.current) {
+        clearTimeout(autoShowTimerRef.current);
+      }
+    };
+  }, [storybook, existingRating, params.id]);
+
+  const handleRatingSubmit = async (ratingData: RatingData) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('No access token available');
+      }
+
+      await api.rateStorybook(params.id as string, ratingData, session.access_token);
+
+      const response = await api.getStorybookRating(params.id as string, session.access_token);
+      if (response.rating) {
+        setExistingRating(response.rating);
+      }
+
+      localStorage.setItem(`rated-storybook-${params.id}`, 'true');
+
+      toast({
+        title: 'Thank you for your feedback!',
+        description: 'Your rating has been submitted successfully',
+      });
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to submit rating');
+    }
+  };
+
+  const handleRatingModalClose = (open: boolean) => {
+    if (!open && !existingRating) {
+      localStorage.setItem(`rated-storybook-${params.id}`, 'true');
+    }
+    setRatingModalOpen(open);
+  };
 
   const handleShare = async () => {
     if (!user?.email_confirmed_at) {
@@ -215,6 +295,13 @@ export default function StorybookViewPage() {
           </div>
         ) : storybook ? (
           <div className="space-y-12">
+            {existingRating && (
+              <ExistingRating
+                rating={existingRating}
+                onUpdateClick={() => setRatingModalOpen(true)}
+              />
+            )}
+
             {storybook.character_description && (
               <Card>
                 <CardHeader>
@@ -255,6 +342,19 @@ export default function StorybookViewPage() {
                 </CardContent>
               </Card>
             ))}
+
+            {!existingRating && (
+              <div className="flex justify-center py-8">
+                <Button
+                  size="lg"
+                  onClick={() => setRatingModalOpen(true)}
+                  className="min-w-[200px]"
+                >
+                  <Star className="h-5 w-5 mr-2 fill-current" />
+                  Rate This Storybook
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <Card>
@@ -263,6 +363,15 @@ export default function StorybookViewPage() {
             </CardContent>
           </Card>
         )}
+
+        <RatingModal
+          open={ratingModalOpen}
+          onOpenChange={handleRatingModalClose}
+          storybookId={params.id as string}
+          existingRating={existingRating}
+          onSubmit={handleRatingSubmit}
+          readingStartTime={readingStartTimeRef.current}
+        />
       </div>
     </div>
   );
