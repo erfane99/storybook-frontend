@@ -7,11 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
-import { ArrowLeft, Download, Lock, Share2, Loader2, Star } from 'lucide-react';
+import { ArrowLeft, Download, Lock, Share2, Loader2, Star, User, MapPin, BookOpen, Palette, Zap } from 'lucide-react';
 import { getClientSupabase } from '@/lib/supabase/client';
 import { api } from '@/lib/api';
 import { RatingModal, RatingData } from '@/components/storybook/RatingModal';
 import { ExistingRating } from '@/components/storybook/ExistingRating';
+import { QualityBadge } from '@/components/storybook/QualityBadge';
+import { QualityScoreCard } from '@/components/storybook/QualityScoreCard';
+import { QualityInsights } from '@/components/storybook/QualityInsights';
+import { QualityCertificate } from '@/components/storybook/QualityCertificate';
+import type { QualityData } from '@/types/quality';
 
 interface Scene {
   description: string;
@@ -50,6 +55,9 @@ export default function StorybookViewPage() {
   const [existingRating, setExistingRating] = useState<RatingData | null>(null);
   const [ratingModalOpen, setRatingModalOpen] = useState(false);
   const [loadingRating, setLoadingRating] = useState(false);
+  const [qualityData, setQualityData] = useState<QualityData | null>(null);
+  const [loadingQuality, setLoadingQuality] = useState(false);
+  const [qualityError, setQualityError] = useState(false);
   const readingStartTimeRef = useRef<number>(Date.now());
   const autoShowTimerRef = useRef<NodeJS.Timeout | null>(null);
   const supabase = getClientSupabase();
@@ -108,6 +116,33 @@ export default function StorybookViewPage() {
     }
 
     fetchRating();
+  }, [storybook, user, params.id, supabase]);
+
+  useEffect(() => {
+    if (!storybook || !user) return;
+
+    async function fetchQuality() {
+      setLoadingQuality(true);
+      setQualityError(false);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+
+        const response = await api.getStorybookQuality(params.id as string, session.access_token);
+        if (response) {
+          setQualityData(response);
+        }
+      } catch (error: any) {
+        if (error.status !== 404) {
+          console.error('Failed to fetch quality metrics:', error);
+          setQualityError(true);
+        }
+      } finally {
+        setLoadingQuality(false);
+      }
+    }
+
+    fetchQuality();
   }, [storybook, user, params.id, supabase]);
 
   useEffect(() => {
@@ -295,6 +330,80 @@ export default function StorybookViewPage() {
           </div>
         ) : storybook ? (
           <div className="space-y-12">
+            {loadingQuality ? (
+              <div className="space-y-6">
+                <div className="flex justify-center">
+                  <Skeleton className="h-48 w-64 rounded-2xl" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <Skeleton key={i} className="h-40 rounded-lg" />
+                  ))}
+                </div>
+              </div>
+            ) : qualityData ? (
+              <div className="space-y-8">
+                <QualityBadge
+                  grade={qualityData.quality_grade}
+                  score={qualityData.overall_technical_quality}
+                />
+
+                {qualityData.overall_technical_quality >= 90 && (
+                  <QualityCertificate
+                    grade={qualityData.quality_grade}
+                    score={qualityData.overall_technical_quality}
+                  />
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <QualityScoreCard
+                    dimension="Character Consistency"
+                    score={qualityData.automated_scores.character.averageConsistencyScore}
+                    description="How consistent your character appears across all panels"
+                    icon={<User className="h-5 w-5 text-primary" />}
+                    index={0}
+                  />
+                  <QualityScoreCard
+                    dimension="Environmental Coherence"
+                    score={qualityData.automated_scores.environmental.worldBuildingCoherence}
+                    description="How well backgrounds and settings maintain consistency"
+                    icon={<MapPin className="h-5 w-5 text-primary" />}
+                    index={1}
+                  />
+                  <QualityScoreCard
+                    dimension="Story & Narrative"
+                    score={qualityData.automated_scores.narrative.storyBeatCompletion}
+                    description="Story flow and narrative coherence"
+                    icon={<BookOpen className="h-5 w-5 text-primary" />}
+                    index={2}
+                  />
+                  <QualityScoreCard
+                    dimension="Visual Quality"
+                    score={qualityData.automated_scores.visual.artisticExecution}
+                    description="Professional quality and visual appeal of artwork"
+                    icon={<Palette className="h-5 w-5 text-primary" />}
+                    index={3}
+                  />
+                  <QualityScoreCard
+                    dimension="Technical Execution"
+                    score={qualityData.automated_scores.technical.generationSuccessRate}
+                    description="AI generation quality and success rate"
+                    icon={<Zap className="h-5 w-5 text-primary" />}
+                    index={4}
+                  />
+                  <QualityScoreCard
+                    dimension="Age Appropriateness"
+                    score={qualityData.automated_scores.audience.ageAppropriateness}
+                    description="Content suitability for target audience"
+                    icon={<Star className="h-5 w-5 text-primary" />}
+                    index={5}
+                  />
+                </div>
+
+                <QualityInsights generationMetrics={qualityData.generation_metrics} />
+              </div>
+            ) : null}
+
             {existingRating && (
               <ExistingRating
                 rating={existingRating}

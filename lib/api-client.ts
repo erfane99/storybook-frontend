@@ -939,6 +939,15 @@ export const api = {
     });
   },
 
+  getStorybookQuality: (storybookId: string, token: string) => {
+    return apiRequest(`api/storybook/${storybookId}/quality`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      enableCache: true,
+      cacheTtl: 300000,
+      requireAuth: true,
+    });
+  },
+
   // NEW: Utility methods for optimization
   /**
    * Clear all cached data
