@@ -69,10 +69,23 @@ export function Step4_ConfirmImage({
       // Get image description if not already available
       if (!finalPrompt) {
         setCurrentStatus('Analyzing image...');
-        setProgress(10);
+        setProgress(5);
         
         console.log('🔍 Calling describeImage API...');
-        const { characterDescription } = await api.describeImage(imageUrl);
+        const { characterDescription } = await api.describeImage(
+          imageUrl,
+          (describeProgress) => {
+            // Map describe progress to 5-20% range
+            const scaledProgress = 5 + (describeProgress * 0.15);
+            setProgress(Math.min(scaledProgress, 20));
+            console.log(`🔍 Describe progress: ${describeProgress}%`);
+          },
+          (describeStatus) => {
+            console.log(`🔍 Describe status: ${describeStatus}`);
+            setCurrentStatus(`Analyzing: ${describeStatus}`);
+          }
+        );
+        
         finalPrompt = characterDescription;
         setPrompt(characterDescription);
         
