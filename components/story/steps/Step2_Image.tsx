@@ -106,7 +106,7 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
     console.log('🎨 Cartoon style from API:', cartoon.style);
     console.log('📝 Character description from API:', cartoon.characterDescription);
     
-    setSelectedCartoon(cartoon);
+   setSelectedCartoon(cartoon);
     setLoadingCharacterDescription(true);
 
     try {
@@ -120,15 +120,8 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
         console.log('   - Length:', characterDescription?.length || 0);
         
         try {
-          const describeResponse = await api.describeCharacter({
-            imageUrl: cartoon.cartoonUrl,
-            options: {
-              detailLevel: 'detailed',
-              includeStyle: true,
-              includeColors: true,
-              includeExpression: true,
-            }
-          });
+          // Use the job-based describeImage instead of describeCharacter
+          const describeResponse = await api.describeImage(cartoon.cartoonUrl);
           characterDescription = describeResponse.characterDescription;
           console.log('✅ Generated new character description:', characterDescription.substring(0, 100) + '...');
         } catch (describeError) {
