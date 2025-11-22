@@ -11,6 +11,14 @@ export interface ImageDescribeResponse {
   characterDescription: string;
 }
 
+export interface DescribeImageJobResponse {
+  jobId: string;
+  pollingUrl: string;
+  status: string;
+  estimatedCompletion: string;
+  estimatedMinutes: number;
+}
+
 export interface CartoonizeImageResponse {
   url: string;
 }
@@ -622,14 +630,36 @@ export const api = {
     });
   },
 
-  describeImage: (imageUrl: string): Promise<ImageDescribeResponse> => {
-    return apiRequest('api/image/describe', {
+  describeImage: async (
+    imageUrl: string,
+    onProgress?: (progress: number) => void,
+    onStatusChange?: (status: string) => void
+  ): Promise<ImageDescribeResponse> => {
+    // Start the character description job
+    const jobResponse: DescribeImageJobResponse = await apiRequest('api/image/describe', {
       method: 'POST',
       body: JSON.stringify({ imageUrl }),
-      enableCache: true,
-      cacheTtl: 600000, // 10 minutes
       requireAuth: false,
     });
+
+    console.log('🔍 Character description job started:', jobResponse.jobId);
+
+    // Poll for completion
+    const result = await pollJobStatus(
+      jobResponse.jobId,
+      jobResponse.pollingUrl,
+      onProgress,
+      onStatusChange
+    );
+
+    // Extract character description from completed job result
+    if (!result.character_description) {
+      throw new Error('Character description not found in job result');
+    }
+
+    return {
+      characterDescription: result.character_description
+    };
   },
 
   // NEW: Enhanced character description with AI analysis (public)
