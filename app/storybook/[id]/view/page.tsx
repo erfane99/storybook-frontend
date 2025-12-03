@@ -414,35 +414,38 @@ export default function StorybookViewPage() {
 
             {/* Character DNA hidden - used only for AI generation backend */}
 
-            {storybook.pages.map((page, pageIndex) => (
-              <Card key={pageIndex}>
-                <CardHeader>
-                  <CardTitle>Page {pageIndex + 1}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className={`grid ${getGridCols(page.scenes.length)} gap-6`}>
-                    {page.scenes.map((scene, sceneIndex) => (
-                      <div key={sceneIndex} className="space-y-4">
-                        <div className="aspect-video relative rounded-lg overflow-hidden">
-                          <img
-                            src={scene.generatedImage}
-                            alt={`Scene ${sceneIndex + 1}`}
-                            className="absolute inset-0 w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                        <p className="text-lg">{scene.narration || scene.description}</p>
-                          {/* Emotion narration hidden from UI - only used for AI prompts */}
-                          {/* <p className="text-sm text-muted-foreground">
-                            Emotion: {scene.emotion}
-                          </p> */}
-                        </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Your Comic Book</span>
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {storybook.pages.flatMap(page => page.scenes).length} Panels
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className={`grid ${
+                  storybook.audience === 'children' ? 'grid-cols-1 md:grid-cols-2' :
+                  storybook.audience === 'young_adults' ? 'grid-cols-1 md:grid-cols-3' :
+                  'grid-cols-1 md:grid-cols-4'
+                } gap-6`}>
+                  {storybook.pages.flatMap(page => page.scenes).map((scene, index) => (
+                    <div key={index} className="space-y-4">
+                      <div className="aspect-video relative rounded-lg overflow-hidden">
+                        <img
+                          src={scene.generatedImage}
+                          alt={`Panel ${index + 1}`}
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      <div className="space-y-2">
+                        <p className="text-lg">{scene.narration || scene.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
             {!existingRating && (
               <div className="flex justify-center py-8">

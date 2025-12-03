@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, ArrowLeft, Printer, Loader2 } from 'lucide-react';
+import { ArrowLeft, Printer, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   AlertDialog,
@@ -83,7 +83,6 @@ export default function StorybookPage() {
   const { toast } = useToast();
   const [storybook, setStorybook] = useState<Storybook | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(0);
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [submittingPrint, setSubmittingPrint] = useState(false);
   const supabase = getClientSupabase();
@@ -218,15 +217,15 @@ export default function StorybookPage() {
             <Card>
               <CardHeader className="bg-primary text-primary-foreground">
                 <CardTitle className="flex items-center justify-between">
-                  <span>Page {currentPage + 1} of {storybook.pages.length}</span>
+                  <span>Your Comic Book</span>
                   <span className="text-sm font-normal">
-                    {storybook.pages[currentPage]?.scenes.length} Scenes
+                    {storybook.pages.flatMap(page => page.scenes).length} Panels
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className={cn("p-0", audienceStyles[storybook.audience as keyof typeof audienceStyles].container)}>
                 <div className={cn("grid", audienceStyles[storybook.audience as keyof typeof audienceStyles].grid)}>
-                  {storybook.pages[currentPage]?.scenes.map((scene: Scene, index: number) => (
+                  {storybook.pages.flatMap(page => page.scenes).map((scene: Scene, index: number) => (
                     <div
                       key={index}
                       className={cn(
@@ -237,7 +236,7 @@ export default function StorybookPage() {
                       <div className="aspect-video relative">
                         <img
                           src={scene.generatedImage}
-                          alt={`Scene ${index + 1}`}
+                          alt={`Panel ${index + 1}`}
                           className={cn(
                             "absolute inset-0 w-full h-full object-cover",
                             audienceStyles[storybook.audience as keyof typeof audienceStyles].image
@@ -251,28 +250,6 @@ export default function StorybookPage() {
                       </div>
                     </div>
                   ))}
-                </div>
-
-                <div className="flex justify-between items-center p-4 border-t">
-                  <Button
-                    variant="outline"
-                    onClick={() => setCurrentPage((prev: number) => prev - 1)}
-                    disabled={currentPage === 0}
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-2" />
-                    Previous Page
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    Page {currentPage + 1} of {storybook.pages.length}
-                  </span>
-                  <Button
-                    variant="outline"
-                    onClick={() => setCurrentPage((prev: number) => prev + 1)}
-                    disabled={currentPage === storybook.pages.length - 1}
-                  >
-                    Next Page
-                    <ChevronRight className="h-4 w-4 ml-2" />
-                  </Button>
                 </div>
               </CardContent>
             </Card>

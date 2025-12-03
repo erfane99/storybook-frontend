@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Scene {
@@ -68,7 +68,6 @@ const audienceLabels = {
 export default function StoryPreviewPage() {
   const router = useRouter();
   const [storyData, setStoryData] = useState<StoryData | null>(null);
-  const [currentPage, setCurrentPage] = useState(0);
 
   useEffect(() => {
     const savedData = sessionStorage.getItem('storybook-data');
@@ -84,16 +83,8 @@ export default function StoryPreviewPage() {
     return null;
   }
 
-  const handlePageChange = (direction: 'next' | 'prev') => {
-    if (direction === 'next' && currentPage < storyData.pages.length - 1) {
-      setCurrentPage(prev => prev + 1);
-    } else if (direction === 'prev' && currentPage > 0) {
-      setCurrentPage(prev => prev - 1);
-    }
-  };
-
-  const currentPageData = storyData.pages[currentPage];
   const styles = audienceStyles[storyData.audience];
+  const allScenes = storyData.pages.flatMap(page => page.scenes);
 
   return (
     <div className="min-h-screen bg-background py-12">
@@ -133,15 +124,15 @@ export default function StoryPreviewPage() {
         <Card>
           <CardHeader className="bg-primary text-primary-foreground">
             <CardTitle className="flex items-center justify-between">
-              <span>Page {currentPage + 1} of {storyData.pages.length}</span>
+              <span>Your Comic Book</span>
               <span className="text-sm font-normal">
-                {currentPageData.scenes.length} Scenes
+                {allScenes.length} Panels
               </span>
             </CardTitle>
           </CardHeader>
           <CardContent className={cn("p-0", styles.container)}>
             <div className={cn("grid", styles.grid)}>
-              {currentPageData.scenes.map((scene, index) => (
+              {allScenes.map((scene, index) => (
                 <div
                   key={index}
                   className={cn(
@@ -152,7 +143,7 @@ export default function StoryPreviewPage() {
                   <div className="aspect-video relative">
                     <img
                       src={scene.generatedImage}
-                      alt={`Scene ${index + 1}`}
+                      alt={`Panel ${index + 1}`}
                       className={cn(
                         "absolute inset-0 w-full h-full object-cover",
                         styles.image
@@ -160,34 +151,10 @@ export default function StoryPreviewPage() {
                     />
                   </div>
                   <div className="p-4 bg-background/95">
-                  <p className={styles.text}>{scene.narration || scene.description}</p>
-                    {/* Emotion narration hidden from UI - only used for AI prompts */}
-                    {/* <p className={styles.emotion}>{scene.emotion}</p> */}
+                    <p className={styles.text}>{scene.narration || scene.description}</p>
                   </div>
                 </div>
               ))}
-            </div>
-
-            <div className="flex justify-between items-center p-4 border-t">
-              <Button
-                variant="outline"
-                onClick={() => handlePageChange('prev')}
-                disabled={currentPage === 0}
-              >
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Previous Page
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {currentPage + 1} of {storyData.pages.length}
-              </span>
-              <Button
-                variant="outline"
-                onClick={() => handlePageChange('next')}
-                disabled={currentPage === storyData.pages.length - 1}
-              >
-                Next Page
-                <ChevronRight className="h-4 w-4 ml-2" />
-              </Button>
             </div>
           </CardContent>
         </Card>
