@@ -4,6 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  NETLIFY_USE_COREPACK = "false"
 
 # Use Next.js plugin for optimal Netlify integration
 [[plugins]]
