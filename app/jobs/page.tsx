@@ -2,6 +2,8 @@
 
 import { JobDashboard } from '@/components/jobs/job-dashboard';
 
+export const dynamic = 'force-dynamic';
+
 export default function JobsPage() {
   return (
     <div className="min-h-screen bg-background py-12">

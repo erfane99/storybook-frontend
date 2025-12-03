@@ -84,7 +84,6 @@ export function JobDashboard({
 
   const { user } = useAuth();
   const { toast } = useToast();
-  const supabase = getClientSupabase();
 
   // Fetch jobs from Railway backend API
   const fetchJobs = async () => {
@@ -92,6 +91,7 @@ export function JobDashboard({
 
     try {
       console.log('📊 Fetching jobs from Railway backend...');
+      const supabase = getClientSupabase();  // ✅ Get it here
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         throw new Error('No access token available');
@@ -172,6 +172,7 @@ export function JobDashboard({
   const handleJobDelete = async (job: Job) => {
     try {
       console.log(`🗑️ Deleting job ${job.jobId} via Railway backend...`);
+      const supabase = getClientSupabase();  // ✅ Get it here
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         throw new Error('No access token available');

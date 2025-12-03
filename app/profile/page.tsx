@@ -11,6 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, User } from 'lucide-react';
 import { getClientSupabase } from '@/lib/supabase/client';
 
+export const dynamic = 'force-dynamic';
+
 export default function ProfilePage() {
   const router = useRouter();
   const { user, profile, updateOnboardingStep } = useAuth();
@@ -20,7 +22,6 @@ export default function ProfilePage() {
     full_name: profile?.full_name || '',
     avatar_url: profile?.avatar_url || '',
   });
-  const supabase = getClientSupabase();
 
   useEffect(() => {
     if (!user) {
@@ -38,6 +39,7 @@ export default function ProfilePage() {
     setIsLoading(true);
 
     try {
+      const supabase = getClientSupabase();
       const { error } = await supabase
         .from('users')
         .update({

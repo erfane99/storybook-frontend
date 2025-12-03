@@ -18,6 +18,8 @@ interface PhoneFormData {
   phone: string;
 }
 
+export const dynamic = 'force-dynamic';
+
 export default function AuthPage() {
   const [isPhoneLoading, setIsPhoneLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -25,7 +27,6 @@ export default function AuthPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { user, isLoading } = useAuth();
-  const supabase = getClientSupabase();
 
   const {
     register,
@@ -79,6 +80,7 @@ export default function AuthPage() {
     setIsGoogleLoading(true);
 
     try {
+      const supabase = getClientSupabase();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {

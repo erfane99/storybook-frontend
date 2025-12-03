@@ -59,7 +59,6 @@ export function MultiStepStoryFormWithJobs() {
 
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = getClientSupabase();
 
   // Job polling hook
   const {
@@ -197,6 +196,7 @@ export function MultiStepStoryFormWithJobs() {
     try {
       console.log('🚀 DEBUG: Getting session...');
       // Get current user session
+      const supabase = getClientSupabase();  // ✅ ADD THIS LINE
       const { data: { session } } = await supabase.auth.getSession();
       console.log('🚀 DEBUG: session:', session?.user?.id ? 'User logged in' : 'No session');
       

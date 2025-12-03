@@ -2,6 +2,8 @@
 
 import { MultiStepStoryFormWithJobs } from '@/components/story/MultiStepStoryFormWithJobs';
 
+export const dynamic = 'force-dynamic';
+
 export default function CreatePage() {
   return (
     <div className="min-h-screen bg-background py-12">

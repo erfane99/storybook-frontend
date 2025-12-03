@@ -46,13 +46,14 @@ const statusColors = {
   rejected: 'bg-red-100 text-red-800',
 };
 
+export const dynamic = 'force-dynamic';
+
 export default function PrintRequestsPage() {
   const [requests, setRequests] = useState<PrintRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = getClientSupabase();
 
   useEffect(() => {
     checkAdminAccess();
@@ -61,6 +62,7 @@ export default function PrintRequestsPage() {
 
   const checkAdminAccess = async () => {
     try {
+      const supabase = getClientSupabase();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push('/auth/login');
@@ -89,6 +91,7 @@ export default function PrintRequestsPage() {
 
   const fetchPrintRequests = async () => {
     try {
+      const supabase = getClientSupabase();
       const { data, error } = await supabase
         .from('print_requests')
         .select(`
@@ -114,6 +117,7 @@ export default function PrintRequestsPage() {
   const updateStatus = async (requestId: string, newStatus: string) => {
     setUpdating(requestId);
     try {
+      const supabase = getClientSupabase();
       const { error } = await supabase
         .from('print_requests')
         .update({ status: newStatus })

@@ -34,6 +34,8 @@ interface Storybook {
   created_at: string;
 }
 
+export const dynamic = 'force-dynamic';
+
 export default function LibraryPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -41,7 +43,6 @@ export default function LibraryPage() {
   const [storybooks, setStorybooks] = useState<Storybook[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const supabase = getClientSupabase();
 
   useEffect(() => {
     if (!user) {
@@ -56,6 +57,7 @@ export default function LibraryPage() {
 
     async function fetchStorybooks() {
       try {
+        const supabase = getClientSupabase();
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.access_token) {
           throw new Error('No access token available');
@@ -75,10 +77,11 @@ export default function LibraryPage() {
     }
 
     fetchStorybooks();
-  }, [user, router, supabase, toast]);
+  }, [user, router, toast]);
 
   const handleDelete = async (id: string) => {
     try {
+      const supabase = getClientSupabase();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         throw new Error('No access token available');

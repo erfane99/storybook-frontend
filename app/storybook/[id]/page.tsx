@@ -101,7 +101,8 @@ export default function StorybookPage() {
           throw new Error('No access token available');
         }
 
-        const { storybook: data } = await api.getUserStorybookById(params.id as string, session.access_token);
+        const storybookId = Array.isArray(params.id) ? params.id[0] : params.id;
+        const { storybook: data } = await api.getUserStorybookById(storybookId, session.access_token);
         setStorybook(data);
       } catch (error: any) {
         toast({
@@ -162,8 +163,8 @@ export default function StorybookPage() {
     }
   };
 
-  const isComplete = storybook?.pages?.every(page => 
-    page.scenes?.every(scene => scene.generatedImage)
+  const isComplete = storybook?.pages?.every((page: Page) => 
+    page.scenes?.every((scene: Scene) => scene.generatedImage)
   );
 
   return (
@@ -186,8 +187,8 @@ export default function StorybookPage() {
               )}
             </h1>
             {storybook?.audience && (
-              <Badge variant="secondary" className="mt-2">
-                {audienceLabels[storybook.audience]}
+              <Badge className="mt-2">
+                {audienceLabels[storybook.audience as keyof typeof audienceLabels]}
               </Badge>
             )}
           </div>
@@ -212,16 +213,7 @@ export default function StorybookPage() {
           </div>
         ) : storybook ? (
           <div className="space-y-12">
-            {storybook.character_description && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Main Character</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">{storybook.character_description}</p>
-                </CardContent>
-              </Card>
-            )}
+            {/* Character DNA hidden - used only for AI generation backend */}
 
             <Card>
               <CardHeader className="bg-primary text-primary-foreground">
@@ -232,14 +224,14 @@ export default function StorybookPage() {
                   </span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className={cn("p-0", audienceStyles[storybook.audience].container)}>
-                <div className={cn("grid", audienceStyles[storybook.audience].grid)}>
-                  {storybook.pages[currentPage]?.scenes.map((scene, index) => (
+              <CardContent className={cn("p-0", audienceStyles[storybook.audience as keyof typeof audienceStyles].container)}>
+                <div className={cn("grid", audienceStyles[storybook.audience as keyof typeof audienceStyles].grid)}>
+                  {storybook.pages[currentPage]?.scenes.map((scene: Scene, index: number) => (
                     <div
                       key={index}
                       className={cn(
                         "overflow-hidden transition-transform hover:scale-[1.02]",
-                        audienceStyles[storybook.audience].card
+                        audienceStyles[storybook.audience as keyof typeof audienceStyles].card
                       )}
                     >
                       <div className="aspect-video relative">
@@ -248,18 +240,14 @@ export default function StorybookPage() {
                           alt={`Scene ${index + 1}`}
                           className={cn(
                             "absolute inset-0 w-full h-full object-cover",
-                            audienceStyles[storybook.audience].image
+                            audienceStyles[storybook.audience as keyof typeof audienceStyles].image
                           )}
                         />
                       </div>
                       <div className="p-4 bg-background/95">
-                        <p className={audienceStyles[storybook.audience].text}>
+                        <p className={audienceStyles[storybook.audience as keyof typeof audienceStyles].text}>
                           {scene.description}
                         </p>
-                        {/* Emotion narration hidden from UI - only used for AI prompts */}
-                        {/* <p className={audienceStyles[storybook.audience].emotion}>
-                          {scene.emotion}
-                        </p> */}
                       </div>
                     </div>
                   ))}
@@ -268,7 +256,7 @@ export default function StorybookPage() {
                 <div className="flex justify-between items-center p-4 border-t">
                   <Button
                     variant="outline"
-                    onClick={() => setCurrentPage(prev => prev - 1)}
+                    onClick={() => setCurrentPage((prev: number) => prev - 1)}
                     disabled={currentPage === 0}
                   >
                     <ChevronLeft className="h-4 w-4 mr-2" />
@@ -279,7 +267,7 @@ export default function StorybookPage() {
                   </span>
                   <Button
                     variant="outline"
-                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    onClick={() => setCurrentPage((prev: number) => prev + 1)}
                     disabled={currentPage === storybook.pages.length - 1}
                   >
                     Next Page

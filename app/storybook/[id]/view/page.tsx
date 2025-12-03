@@ -411,16 +411,7 @@ export default function StorybookViewPage() {
               />
             )}
 
-            {storybook.character_description && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Main Character</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">{storybook.character_description}</p>
-                </CardContent>
-              </Card>
-            )}
+            {/* Character DNA hidden - used only for AI generation backend */}
 
             {storybook.pages.map((page, pageIndex) => (
               <Card key={pageIndex}>
