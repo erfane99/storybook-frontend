@@ -20,6 +20,7 @@ import type { QualityData } from '@/types/quality';
 
 interface Scene {
   description: string;
+  narration?: string;
   emotion: string;
   generatedImage: string;
 }
@@ -430,7 +431,7 @@ export default function StorybookViewPage() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <p className="text-lg">{scene.description}</p>
+                        <p className="text-lg">{scene.narration || scene.description}</p>
                           {/* Emotion narration hidden from UI - only used for AI prompts */}
                           {/* <p className="text-sm text-muted-foreground">
                             Emotion: {scene.emotion}

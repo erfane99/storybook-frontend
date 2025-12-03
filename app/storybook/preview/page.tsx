@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 
 interface Scene {
   description: string;
+  narration?: string;
   emotion: string;
   imagePrompt: string;
   generatedImage: string;
@@ -159,7 +160,7 @@ export default function StoryPreviewPage() {
                     />
                   </div>
                   <div className="p-4 bg-background/95">
-                    <p className={styles.text}>{scene.description}</p>
+                  <p className={styles.text}>{scene.narration || scene.description}</p>
                     {/* Emotion narration hidden from UI - only used for AI prompts */}
                     {/* <p className={styles.emotion}>{scene.emotion}</p> */}
                   </div>
