@@ -3,7 +3,7 @@
   publish = ".next"
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
   NETLIFY_USE_COREPACK = "false"
 
 # Use Next.js plugin for optimal Netlify integration
