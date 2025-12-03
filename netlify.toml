@@ -4,7 +4,6 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  NPM_VERSION = "10"
 
 # Use Next.js plugin for optimal Netlify integration
 [[plugins]]
