@@ -24,8 +24,23 @@ import { api } from '@/lib/api';
 
 interface Scene {
   description: string;
+  narration?: string;           // ✅ ADD: 20-40 word narrative text
   emotion: string;
   generatedImage: string;
+  imagePrompt?: string;
+  panelNumber?: number;
+  pageNumber?: number;
+  panelType?: string;
+  characterAction?: string;
+  narrativePurpose?: string;
+  visualPriority?: string;
+  dialogue?: string;
+  hasSpeechBubble?: boolean;
+  environmentalContext?: string;
+  professionalStandards?: boolean;
+  imageGenerated?: boolean;
+  characterDNAUsed?: boolean;
+  environmentalDNAUsed?: boolean;
 }
 
 interface Page {
@@ -215,44 +230,84 @@ export default function StorybookPage() {
             {/* Character DNA hidden - used only for AI generation backend */}
 
             <Card>
-              <CardHeader className="bg-primary text-primary-foreground">
-                <CardTitle className="flex items-center justify-between">
-                  <span>Your Comic Book</span>
-                  <span className="text-sm font-normal">
-                    {storybook.pages.flatMap(page => page.scenes).length} Panels
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className={cn("p-0", audienceStyles[storybook.audience as keyof typeof audienceStyles].container)}>
-                <div className={cn("grid", audienceStyles[storybook.audience as keyof typeof audienceStyles].grid)}>
-                  {storybook.pages.flatMap(page => page.scenes).map((scene: Scene, index: number) => (
-                    <div
-                      key={index}
-                      className={cn(
-                        "overflow-hidden transition-transform hover:scale-[1.02]",
-                        audienceStyles[storybook.audience as keyof typeof audienceStyles].card
-                      )}
-                    >
-                      <div className="aspect-video relative">
-                        <img
-                          src={scene.generatedImage}
-                          alt={`Panel ${index + 1}`}
-                          className={cn(
-                            "absolute inset-0 w-full h-full object-cover",
-                            audienceStyles[storybook.audience as keyof typeof audienceStyles].image
-                          )}
-                        />
+  <CardHeader className="bg-primary text-primary-foreground">
+    <CardTitle className="flex items-center justify-between">
+      <span>Your Comic Book</span>
+      <span className="text-sm font-normal">
+        {storybook.pages.length} Pages • {storybook.pages.flatMap(page => page.scenes).length} Panels
+      </span>
+    </CardTitle>
+  </CardHeader>
+  <CardContent className="p-6">
+    <div className="space-y-8">
+      {storybook.pages.map((page: Page, pageIndex: number) => (
+        <Card key={pageIndex} className="overflow-hidden border-2">
+          <CardHeader className="bg-primary/5 border-b py-3">
+            <CardTitle className="flex items-center justify-between text-base">
+              <span>Page {pageIndex + 1}</span>
+              <Badge variant="outline">{page.scenes.length} Panels</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-2 gap-4">
+              {page.scenes.map((scene: Scene, sceneIndex: number) => {
+                // Calculate global panel number across all pages
+                const globalPanelNumber = storybook.pages
+                  .slice(0, pageIndex)
+                  .reduce((sum, p) => sum + p.scenes.length, 0) + sceneIndex + 1;
+                
+                return (
+                  <div
+                    key={sceneIndex}
+                    className="relative aspect-[4/3] rounded-lg overflow-hidden border-2 border-primary/20 hover:border-primary/40 transition-all group"
+                  >
+                    {/* Panel number badge */}
+                    <div className="absolute top-2 left-2 z-10 bg-primary text-primary-foreground text-xs font-bold rounded-full w-7 h-7 flex items-center justify-center shadow-lg">
+                      {globalPanelNumber}
+                    </div>
+                    
+                    {/* Panel image */}
+                    {scene.generatedImage ? (
+                      <img
+                        src={scene.generatedImage}
+                        alt={`Panel ${globalPanelNumber}`}
+                        className="w-full h-full object-cover"
+                        onLoad={() => console.log('✅ Panel loaded:', globalPanelNumber, scene.generatedImage)}
+                        onError={(e) => {
+                          console.error('❌ Panel failed to load:', {
+                            url: scene.generatedImage,
+                            panel: globalPanelNumber,
+                            page: pageIndex + 1,
+                            scene: sceneIndex + 1
+                          });
+                          // Show placeholder
+                          e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect width="400" height="300" fill="%23ddd"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="18" fill="%23999"%3EPanel Not Available%3C/text%3E%3C/svg%3E';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-muted flex items-center justify-center">
+                        <p className="text-muted-foreground text-sm">Panel not generated</p>
                       </div>
-                      <div className="p-4 bg-background/95">
-                        <p className={audienceStyles[storybook.audience as keyof typeof audienceStyles].text}>
-                          {scene.description}
+                    )}
+                    
+                    {/* Narration overlay - appears on hover */}
+                    {scene.narration && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p className="text-white text-sm leading-relaxed">
+                          {scene.narration}
                         </p>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  </CardContent>
+</Card>
 
             <div className="flex justify-center space-x-4">
               {isComplete && (

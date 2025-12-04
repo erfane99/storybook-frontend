@@ -20,9 +20,23 @@ import type { QualityData } from '@/types/quality';
 
 interface Scene {
   description: string;
-  narration?: string;
+  narration?: string;           // ✅ Already has this
   emotion: string;
   generatedImage: string;
+  imagePrompt?: string;
+  panelNumber?: number;
+  pageNumber?: number;
+  panelType?: string;
+  characterAction?: string;
+  narrativePurpose?: string;
+  visualPriority?: string;
+  dialogue?: string;
+  hasSpeechBubble?: boolean;
+  environmentalContext?: string;
+  professionalStandards?: boolean;
+  imageGenerated?: boolean;
+  characterDNAUsed?: boolean;
+  environmentalDNAUsed?: boolean;
 }
 
 interface Page {
