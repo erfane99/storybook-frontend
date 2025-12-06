@@ -1,5 +1,5 @@
 [build]
-  command = "npm run build"
+  command = "npm cache clean --force && npm ci && npm run build"
   publish = ".next"
 
 [build.environment]
