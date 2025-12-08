@@ -565,20 +565,9 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
                       )}
                     </div>
                     
-                    {/* Character Description */}
-                    {loadingCharacterDescription ? (
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm text-green-700">Loading character description...</span>
-                      </div>
-                    ) : (
-                      <div>
-                        <span className="font-medium text-green-800">Description:</span>
-                        <p className="text-green-700 text-sm mt-1">
-                          {formData.characterDescription || selectedCartoon.characterDescription || 'No description available'}
-                        </p>
-                      </div>
-                    )}
+                    {/* Character Description - HIDDEN: Backend data only, not for user display */}
+{/* The character description is stored in the backend and used by AI for consistency.
+    Users don't need to see this technical data. */}
                     
                     {/* Tags */}
                     {selectedCartoon.tags && selectedCartoon.tags.length > 0 && (
