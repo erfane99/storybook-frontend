@@ -203,29 +203,89 @@ export function JobDashboard({
     });
   };
 
+  const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
+
   const handleJobCancel = async (job: Job) => {
+    // CHECK #1: Confirmation dialog before cancellation
+    const confirmed = window.confirm(
+      'Are you sure you want to cancel this story generation? This action cannot be undone.'
+    );
+    if (!confirmed) return;
+
+    // CHECK #6: Loading state to prevent double-clicks
+    setCancellingJobId(job.jobId);
+
     try {
       console.log(`🚫 Cancelling job ${job.jobId} via Railway backend...`);
-      await api.cancelJob(job.jobId);
+      
+      // CHECK #2: Fetch and pass auth token
+      const supabase = getClientSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      if (!token) {
+        toast({
+          variant: 'destructive',
+          title: 'Authentication Error',
+          description: 'Please refresh the page and try again.',
+        });
+        return;
+      }
+      
+      const response = await api.cancelJob(job.jobId, token);
 
-      // Update job status locally
+      // CHECK #5: Handle specific error responses
+      if (response && typeof response === 'object' && 'error' in response) {
+        const errorMessage = (response as any).error || 'Unknown error';
+        
+        // Check for specific error types based on message
+        if (errorMessage.includes('completed')) {
+          toast({
+            variant: 'destructive',
+            title: 'Cannot Cancel',
+            description: 'This job has already completed.',
+          });
+        } else if (errorMessage.includes('not found')) {
+          toast({
+            variant: 'destructive',
+            title: 'Job Not Found',
+            description: 'This job may have already been deleted.',
+          });
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Cancellation Failed',
+            description: errorMessage,
+          });
+        }
+        return;
+      }
+
+      // Update job status locally (optimistic update)
       setJobs(prev => prev.map(j => 
         j.jobId === job.jobId 
-          ? { ...j, status: 'cancelled' as const }
+          ? { ...j, status: 'cancelled' as const, currentStep: 'Cancelled by user' }
           : j
       ));
 
+      // CHECK #3: Clear success feedback
       toast({
-        title: 'Success',
-        description: 'Job cancelled successfully',
+        title: '✅ Cancelled',
+        description: 'Story generation cancelled successfully.',
       });
+      
     } catch (error: any) {
       console.error('❌ Failed to cancel job:', error);
+      
+      // CHECK #5: Handle network errors
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to cancel job',
+        title: 'Network Error',
+        description: 'Please check your connection and try again.',
       });
+    } finally {
+      // CHECK #6: Reset loading state
+      setCancellingJobId(null);
     }
   };
 
@@ -381,7 +441,7 @@ export function JobDashboard({
               onDownload={() => handleJobDownload(job)}
               onDelete={() => handleJobDelete(job)}
               onRetry={() => handleJobRetry(job)}
-              onCancel={() => handleJobCancel(job)}
+              onCancel={cancellingJobId === job.jobId ? undefined : () => handleJobCancel(job)}
             />
           ))}
         </div>

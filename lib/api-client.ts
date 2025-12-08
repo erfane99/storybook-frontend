@@ -926,10 +926,11 @@ export const api = {
     });
   },
 
-  cancelJob: (jobId: string) => {
-    return apiRequest(`api/jobs/cancel/${jobId}`, {
-      method: 'POST',
-      requireAuth: false, // Jobs can be cancelled without auth
+  cancelJob: (jobId: string, token?: string) => {
+    return apiRequest(`api/jobs/${jobId}`, {
+      method: 'DELETE',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : undefined,
+      requireAuth: true,
     });
   },
 

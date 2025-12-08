@@ -187,12 +187,14 @@ export function ProgressTracker({
           </div>
 
           <div className="flex items-center gap-2">
-            {onCancel && status === 'processing' && (
+            {/* CHECK #4: Show cancel button for both pending and processing jobs */}
+            {onCancel && (status === 'processing' || status === 'pending') && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onCancel}
                 className="text-muted-foreground hover:text-destructive"
+                title="Cancel generation"
               >
                 <X className="h-4 w-4" />
               </Button>
