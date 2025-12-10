@@ -290,14 +290,14 @@ export default function StorybookPage() {
                       </div>
                     )}
                     
-                    {/* Narration overlay - appears on hover */}
-                    {scene.narration && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <p className="text-white text-sm leading-relaxed">
-                          {scene.narration}
-                        </p>
-                      </div>
-                    )}
+                    {/* Narration caption - always visible like professional comic books */}
+{scene.narration && (
+  <div className="absolute bottom-0 left-0 right-0 bg-black/90 p-3 border-t-2 border-yellow-400">
+    <p className="text-white text-sm leading-relaxed font-comic text-center">
+      {scene.narration}
+    </p>
+  </div>
+)}
                   </div>
                 );
               })}
