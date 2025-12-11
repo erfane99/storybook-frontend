@@ -11,7 +11,7 @@ interface ExistingRatingProps {
     created_at?: string;
     updated_at?: string;
   };
-  onUpdateClick: () => void;
+  onUpdateClick?: () => void;
 }
 
 export function ExistingRating({ rating, onUpdateClick }: ExistingRatingProps) {
@@ -49,10 +49,12 @@ export function ExistingRating({ rating, onUpdateClick }: ExistingRatingProps) {
               </p>
             )}
           </div>
-          <Button variant="outline" size="sm" onClick={onUpdateClick}>
-            <Edit className="h-4 w-4 mr-2" />
-            Update
-          </Button>
+          {onUpdateClick && (
+            <Button variant="outline" size="sm" onClick={onUpdateClick}>
+              <Edit className="h-4 w-4 mr-2" />
+              Update
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-6">

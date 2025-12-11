@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Printer, Loader2 } from 'lucide-react';
+import { ArrowLeft, Printer, Loader2, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   AlertDialog,
@@ -21,6 +21,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { getClientSupabase } from '@/lib/supabase/client';
 import { api } from '@/lib/api';
+import { RatingModal, RatingData } from '@/components/storybook/RatingModal';
+import { ExistingRating } from '@/components/storybook/ExistingRating';
 
 interface Scene {
   description: string;
@@ -100,6 +102,9 @@ export default function StorybookPage() {
   const [loading, setLoading] = useState(true);
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [submittingPrint, setSubmittingPrint] = useState(false);
+  const [ratingModalOpen, setRatingModalOpen] = useState(false);
+  const [existingRating, setExistingRating] = useState<RatingData | null>(null);
+  const readingStartTimeRef = useRef<number>(Date.now());
   const supabase = getClientSupabase();
 
   useEffect(() => {
@@ -131,6 +136,60 @@ export default function StorybookPage() {
 
     fetchStorybook();
   }, [user, params.id, router, supabase, toast]);
+
+  // Fetch existing rating after storybook loads
+  useEffect(() => {
+    if (!storybook || !user) return;
+
+    async function fetchRating() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+
+        const storybookId = Array.isArray(params.id) ? params.id[0] : params.id;
+        const response = await api.getStorybookRating(storybookId, session.access_token);
+        if (response.rating) {
+          setExistingRating(response.rating);
+        }
+      } catch (error: any) {
+        // 404 is expected when no rating exists
+        if (error.status !== 404) {
+          console.error('Failed to fetch rating:', error);
+        }
+      }
+    }
+
+    fetchRating();
+  }, [storybook, user, params.id, supabase]);
+
+  const handleRatingSubmit = async (ratingData: RatingData) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('No access token available');
+      }
+
+      const storybookId = Array.isArray(params.id) ? params.id[0] : params.id;
+      await api.rateStorybook(storybookId, ratingData, session.access_token);
+
+      // Refresh rating after submission
+      const response = await api.getStorybookRating(storybookId, session.access_token);
+      if (response.rating) {
+        setExistingRating(response.rating);
+      }
+
+      toast({
+        title: 'Thank you for your feedback!',
+        description: 'Your rating helps improve our AI generation.',
+      });
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to submit rating');
+    }
+  };
+
+  const handleRatingModalClose = (open: boolean) => {
+    setRatingModalOpen(open);
+  };
 
   const handlePrintRequest = async () => {
     if (!user || !storybook) return;
@@ -257,48 +316,47 @@ export default function StorybookPage() {
                   .reduce((sum, p) => sum + p.scenes.length, 0) + sceneIndex + 1;
                 
                 return (
-                  <div
-                    key={sceneIndex}
-                    className="relative aspect-[4/3] rounded-lg overflow-hidden border-2 border-primary/20 hover:border-primary/40 transition-all group"
-                  >
-                    {/* Panel number badge */}
-                    <div className="absolute top-2 left-2 z-10 bg-primary text-primary-foreground text-xs font-bold rounded-full w-7 h-7 flex items-center justify-center shadow-lg">
-                      {globalPanelNumber}
-                    </div>
-                    
-                    {/* Panel image */}
-                    {scene.generatedImage ? (
-                      <img
-                        src={scene.generatedImage}
-                        alt={`Panel ${globalPanelNumber}`}
-                        className="w-full h-full object-cover"
-                        onLoad={() => console.log('✅ Panel loaded:', globalPanelNumber, scene.generatedImage)}
-                        onError={(e) => {
-                          console.error('❌ Panel failed to load:', {
-                            url: scene.generatedImage,
-                            panel: globalPanelNumber,
-                            page: pageIndex + 1,
-                            scene: sceneIndex + 1
-                          });
-                          // Show placeholder
-                          e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect width="400" height="300" fill="%23ddd"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="18" fill="%23999"%3EPanel Not Available%3C/text%3E%3C/svg%3E';
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-muted flex items-center justify-center">
-                        <p className="text-muted-foreground text-sm">Panel not generated</p>
-                      </div>
-                    )}
-                    
-                    {/* Narration caption - always visible like professional comic books */}
-{scene.narration && (
-  <div className="absolute bottom-0 left-0 right-0 bg-black/90 p-3 border-t-2 border-yellow-400">
-    <p className="text-white text-sm leading-relaxed font-comic text-center">
-      {scene.narration}
-    </p>
+                  <div key={sceneIndex} className="flex flex-col gap-2">
+  {/* Panel Image Container */}
+  <div className="relative aspect-[4/3] rounded-lg overflow-hidden border-2 border-primary/20 hover:border-primary/40 transition-all">
+    {/* Panel number badge */}
+    <div className="absolute top-2 left-2 z-10 bg-primary text-primary-foreground text-xs font-bold rounded-full w-7 h-7 flex items-center justify-center shadow-lg">
+      {globalPanelNumber}
+    </div>
+    
+    {/* Panel image - FULL visibility, no overlay */}
+    {scene.generatedImage ? (
+      <img
+        src={scene.generatedImage}
+        alt={`Panel ${globalPanelNumber}`}
+        className="w-full h-full object-cover"
+        onLoad={() => console.log('✅ Panel loaded:', globalPanelNumber, scene.generatedImage)}
+        onError={(e) => {
+          console.error('❌ Panel failed to load:', {
+            url: scene.generatedImage,
+            panel: globalPanelNumber,
+            page: pageIndex + 1,
+            scene: sceneIndex + 1
+          });
+          e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect width="400" height="300" fill="%23ddd"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="18" fill="%23999"%3EPanel Not Available%3C/text%3E%3C/svg%3E';
+        }}
+      />
+    ) : (
+      <div className="w-full h-full bg-muted flex items-center justify-center">
+        <p className="text-muted-foreground text-sm">Panel not generated</p>
+      </div>
+    )}
   </div>
-)}
-                  </div>
+  
+  {/* Narration Caption - BELOW image, professional comic book style */}
+  {scene.narration && (
+    <div className="bg-black rounded-md p-3 border-2 border-yellow-400/80">
+      <p className="text-white text-sm leading-relaxed text-center font-medium">
+        {scene.narration}
+      </p>
+    </div>
+  )}
+</div>
                 );
               })}
             </div>
@@ -308,6 +366,29 @@ export default function StorybookPage() {
     </div>
   </CardContent>
 </Card>
+
+            {/* Rating Section */}
+            {isComplete && (
+              <div className="space-y-6">
+                {existingRating ? (
+                  <ExistingRating
+                    rating={existingRating}
+                    onUpdateClick={() => setRatingModalOpen(true)}
+                  />
+                ) : (
+                  <div className="flex justify-center py-8">
+                    <Button
+                      size="lg"
+                      onClick={() => setRatingModalOpen(true)}
+                      className="min-w-[200px]"
+                    >
+                      <Star className="h-5 w-5 mr-2 fill-current" />
+                      Rate This Storybook
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex justify-center space-x-4">
               {isComplete && (
@@ -357,6 +438,16 @@ export default function StorybookPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Rating Modal */}
+      <RatingModal
+        open={ratingModalOpen}
+        onOpenChange={handleRatingModalClose}
+        storybookId={Array.isArray(params.id) ? params.id[0] : params.id}
+        existingRating={existingRating}
+        onSubmit={handleRatingSubmit}
+        readingStartTime={readingStartTimeRef.current}
+      />
     </div>
   );
 }

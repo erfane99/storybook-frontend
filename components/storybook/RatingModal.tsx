@@ -205,7 +205,7 @@ export function RatingModal({
                   value={characterConsistency}
                   onChange={setCharacterConsistency}
                   label="Character Consistency"
-                  description="How consistent was your character across all panels?"
+                  description="Does your character look the same in every panel? (Improves Character DNA)"
                   icon={<User className="h-5 w-5" />}
                 />
 
@@ -213,7 +213,7 @@ export function RatingModal({
                   value={storyFlow}
                   onChange={setStoryFlow}
                   label="Story Flow & Narrative"
-                  description="How engaging and well-paced was the story?"
+                  description="Does the narration match what you see? (Improves story analysis)"
                   icon={<Book className="h-5 w-5" />}
                 />
 
@@ -221,7 +221,7 @@ export function RatingModal({
                   value={artQuality}
                   onChange={setArtQuality}
                   label="Art Quality & Visual Appeal"
-                  description="How professional and beautiful was the artwork?"
+                  description="How beautiful are the images? (Improves image generation)"
                   icon={<Palette className="h-5 w-5" />}
                 />
 
@@ -229,7 +229,7 @@ export function RatingModal({
                   value={sceneConsistency}
                   onChange={setSceneConsistency}
                   label="Scene & Background Consistency"
-                  description="How consistent were the backgrounds and environments?"
+                  description="Are backgrounds consistent? (Improves Environmental DNA)"
                   icon={<Image className="h-5 w-5" />}
                 />
 
@@ -237,7 +237,7 @@ export function RatingModal({
                   value={overallExperience}
                   onChange={setOverallExperience}
                   label="Overall Experience"
-                  description="How satisfied are you with your storybook overall?"
+                  description="Overall satisfaction? (Improves entire pipeline)"
                   icon={<Heart className="h-5 w-5" />}
                 />
               </div>
