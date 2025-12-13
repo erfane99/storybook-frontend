@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent } from '@/components/ui/card';
-import { Wand2, PencilLine, Rocket, Users, Moon, Sparkles, BookOpen } from 'lucide-react';
+import { Wand2, PencilLine, Rocket, Users, Moon, Sparkles, BookOpen, Heart, Search, Laugh, Sword, Palette, Trophy, TreePine } from 'lucide-react';
 
 interface Step5_StoryProps {
   value: string;
@@ -20,35 +20,84 @@ const genres = [
   { 
     value: 'adventure', 
     label: 'Adventure', 
-    description: 'An exciting journey filled with challenges and discoveries',
+    description: 'Exciting journeys filled with challenges and discoveries',
     icon: Rocket,
     audience: 'all'
   },
   { 
+    value: 'fantasy', 
+    label: 'Fantasy', 
+    description: 'Magical worlds with wonder and enchantment',
+    icon: Sparkles,
+    audience: 'all'
+  },
+  { 
+    value: 'mystery', 
+    label: 'Mystery', 
+    description: 'Solve puzzles and uncover hidden secrets',
+    icon: Search,
+    audience: 'all'
+  },
+  { 
+    value: 'comedy', 
+    label: 'Comedy', 
+    description: 'Funny adventures that make you laugh',
+    icon: Laugh,
+    audience: 'all'
+  },
+  { 
+    value: 'friendship', 
+    label: 'Friendship', 
+    description: 'Heartwarming tales about making and keeping friends',
+    icon: Heart,
+    audience: 'all'
+  },
+  { 
+    value: 'courage', 
+    label: 'Courage', 
+    description: 'Tales of bravery and overcoming fears',
+    icon: Sword,
+    audience: 'all'
+  },
+  { 
+    value: 'nature', 
+    label: 'Nature', 
+    description: 'Explore the wonders of the natural world',
+    icon: TreePine,
+    audience: 'all'
+  },
+  { 
+    value: 'creativity', 
+    label: 'Art & Creativity', 
+    description: 'Stories celebrating imagination and expression',
+    icon: Palette,
+    audience: 'all'
+  },
+  { 
+    value: 'sports', 
+    label: 'Sports', 
+    description: 'Action-packed tales of teamwork and triumph',
+    icon: Trophy,
+    audience: 'all'
+  },
+  { 
     value: 'siblings', 
-    label: 'Playing with Siblings', 
-    description: 'Fun stories about family bonding and sharing',
+    label: 'Family', 
+    description: 'Stories about family bonding and sibling adventures',
     icon: Users,
     audience: 'children'
   },
   { 
     value: 'bedtime', 
-    label: 'Going to Sleep', 
-    description: 'Calming bedtime stories for peaceful nights',
+    label: 'Bedtime', 
+    description: 'Calming stories perfect for peaceful nights',
     icon: Moon,
     audience: 'children'
   },
   { 
-    value: 'fantasy', 
-    label: 'Fantasy/Sci-Fi', 
-    description: 'Magical worlds and futuristic adventures',
-    icon: Sparkles,
-    audience: 'all'
-  },
-  { 
     value: 'history', 
     label: 'History', 
-    description: 'Educational stories from the past',
+    description: 'Educational adventures from the past',
     icon: BookOpen,
     audience: 'all'
   }
