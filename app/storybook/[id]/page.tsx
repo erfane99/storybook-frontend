@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Printer, Loader2, Star } from 'lucide-react';
+import { ArrowLeft, Printer, Loader2, Star, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   AlertDialog,
@@ -22,6 +22,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { getClientSupabase } from '@/lib/supabase/client';
 import { api } from '@/lib/api';
 import { RatingModal, RatingData } from '@/components/storybook/RatingModal';
+import { FeedbackModal } from '@/components/storybook/FeedbackModal';
 import { ExistingRating } from '@/components/storybook/ExistingRating';
 
 interface Scene {
@@ -103,6 +104,7 @@ export default function StorybookPage() {
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [submittingPrint, setSubmittingPrint] = useState(false);
   const [ratingModalOpen, setRatingModalOpen] = useState(false);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [existingRating, setExistingRating] = useState<RatingData | null>(null);
   const readingStartTimeRef = useRef<number>(Date.now());
   const supabase = getClientSupabase();
@@ -242,7 +244,7 @@ export default function StorybookPage() {
 
   return (
     <div className="min-h-screen bg-background py-12">
-      <div className="container max-w-7xl">
+      <div className="container max-w-7xl 2xl:max-w-[1600px]">
         <div className="flex items-center justify-between mb-8">
           <Button
             variant="ghost"
@@ -307,8 +309,8 @@ export default function StorybookPage() {
               <Badge variant="outline">{page.scenes.length} Panels</Badge>
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-2 gap-4">
+          <CardContent className="p-4 sm:p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
               {page.scenes.map((scene: Scene, sceneIndex: number) => {
                 // Calculate global panel number across all pages
                 const globalPanelNumber = storybook.pages
@@ -316,11 +318,11 @@ export default function StorybookPage() {
                   .reduce((sum, p) => sum + p.scenes.length, 0) + sceneIndex + 1;
                 
                 return (
-                  <div key={sceneIndex} className="flex flex-col gap-2">
-  {/* Panel Image Container */}
-  <div className="relative aspect-[4/3] rounded-lg overflow-hidden border-2 border-primary/20 hover:border-primary/40 transition-all">
-    {/* Panel number badge */}
-    <div className="absolute top-2 left-2 z-10 bg-primary text-primary-foreground text-xs font-bold rounded-full w-7 h-7 flex items-center justify-center shadow-lg">
+                  <div key={sceneIndex} className="flex flex-col gap-2 sm:gap-3">
+  {/* Panel Image Container - Responsive sizing */}
+  <div className="relative aspect-[4/3] sm:aspect-[4/3] lg:aspect-[16/10] xl:aspect-[4/3] rounded-lg overflow-hidden border-2 border-primary/20 hover:border-primary/40 transition-all shadow-sm hover:shadow-md">
+    {/* Panel number badge - Responsive sizing */}
+    <div className="absolute top-2 left-2 z-10 bg-primary text-primary-foreground text-xs sm:text-sm font-bold rounded-full w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 flex items-center justify-center shadow-lg">
       {globalPanelNumber}
     </div>
     
@@ -348,10 +350,10 @@ export default function StorybookPage() {
     )}
   </div>
   
-  {/* Narration Caption - BELOW image, professional comic book style */}
+  {/* Narration Caption - BELOW image, professional comic book style, responsive */}
   {scene.narration && (
-    <div className="bg-black rounded-md p-3 border-2 border-yellow-400/80">
-      <p className="text-white text-sm leading-relaxed text-center font-medium">
+    <div className="bg-black rounded-md p-2 sm:p-3 lg:p-4 border-2 border-yellow-400/80">
+      <p className="text-white text-xs sm:text-sm lg:text-base leading-relaxed text-center font-medium">
         {scene.narration}
       </p>
     </div>
@@ -367,25 +369,53 @@ export default function StorybookPage() {
   </CardContent>
 </Card>
 
-            {/* Rating Section */}
+            {/* Rating & Feedback Section */}
             {isComplete && (
               <div className="space-y-6">
                 {existingRating ? (
-                  <ExistingRating
-                    rating={existingRating}
-                    onUpdateClick={() => setRatingModalOpen(true)}
-                  />
+                  <>
+                    <ExistingRating
+                      rating={existingRating}
+                      onUpdateClick={() => setRatingModalOpen(true)}
+                    />
+                    <div className="flex justify-center">
+                      <Button
+                        variant="outline"
+                        onClick={() => setFeedbackModalOpen(true)}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Suggest Improvements
+                      </Button>
+                    </div>
+                  </>
                 ) : (
-                  <div className="flex justify-center py-8">
-                    <Button
-                      size="lg"
-                      onClick={() => setRatingModalOpen(true)}
-                      className="min-w-[200px]"
-                    >
-                      <Star className="h-5 w-5 mr-2 fill-current" />
-                      Rate This Storybook
-                    </Button>
-                  </div>
+                  <Card>
+                    <CardContent className="py-8">
+                      <div className="text-center space-y-4">
+                        <h3 className="text-xl font-semibold">How was your storybook?</h3>
+                        <p className="text-muted-foreground">
+                          Your feedback helps us create better stories for you
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                          <Button
+                            size="lg"
+                            onClick={() => setRatingModalOpen(true)}
+                          >
+                            <Star className="h-5 w-5 mr-2 fill-current" />
+                            Rate This Storybook
+                          </Button>
+                          <Button
+                            size="lg"
+                            variant="outline"
+                            onClick={() => setFeedbackModalOpen(true)}
+                          >
+                            <MessageSquare className="h-5 w-5 mr-2" />
+                            Suggest Improvements
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
               </div>
             )}
@@ -447,6 +477,19 @@ export default function StorybookPage() {
         existingRating={existingRating}
         onSubmit={handleRatingSubmit}
         readingStartTime={readingStartTimeRef.current}
+      />
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        open={feedbackModalOpen}
+        onOpenChange={setFeedbackModalOpen}
+        storybookId={Array.isArray(params.id) ? params.id[0] : params.id}
+        onSubmitSuccess={() => {
+          toast({
+            title: 'Feedback Received',
+            description: "Thank you! We'll use this to improve your next storybook.",
+          });
+        }}
       />
     </div>
   );
