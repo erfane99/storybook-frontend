@@ -76,22 +76,34 @@ export function FeedbackModal({
     selectedStoryIssues.length > 0 || 
     selectedImageIssues.length > 0;
 
-  const handleSubmit = async () => {
-    if (!hasAnyFeedback) return;
-
-    setIsSubmitting(true);
-    setSubmitError(null);
-
-    try {
-      const response = await fetch(`/api/storybook/${storybookId}/feedback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          story_feedback: storyFeedback.trim() || null,
-          image_feedback: imageFeedback.trim() || null,
-          quick_issues: [...selectedStoryIssues, ...selectedImageIssues],
-        }),
-      });
+    const handleSubmit = async () => {
+      if (!hasAnyFeedback) return;
+  
+      setIsSubmitting(true);
+      setSubmitError(null);
+  
+      try {
+        // Get auth token from Supabase session
+        const { getClientSupabase } = await import('@/lib/supabase/client');
+        const supabase = getClientSupabase();
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.access_token) {
+          throw new Error('Please sign in to submit feedback');
+        }
+  
+        const response = await fetch(`/api/storybook/${storybookId}/feedback`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            story_feedback: storyFeedback.trim() || null,
+            image_feedback: imageFeedback.trim() || null,
+            quick_issues: [...selectedStoryIssues, ...selectedImageIssues],
+          }),
+        });
 
       if (!response.ok) {
         const data = await response.json();
