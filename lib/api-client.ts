@@ -879,6 +879,7 @@ export const api = {
     audience: string;
     characterArtStyle?: string;
     layoutType?: string;
+    characters?: any[]; // NEW: Multi-character support
   }) => {
     return apiRequest('api/jobs/auto-story/start', {
       method: 'POST',
@@ -909,6 +910,7 @@ export const api = {
     characterDescription?: string;
     characterArtStyle?: string;
     layoutType?: string;
+    characters?: any[]; // NEW: Multi-character support
   }) => {
     return apiRequest('api/jobs/storybook/start', {
       method: 'POST',
@@ -953,9 +955,20 @@ export const api = {
     would_recommend: boolean;
     time_spent_reading: number;
   }, token: string) => {
+    // Transform frontend field names to match backend API expectations
+    const apiPayload = {
+      character_consistency_rating: ratingData.character_consistency,
+      story_flow_narrative_rating: ratingData.story_flow,
+      art_quality_visual_appeal_rating: ratingData.art_quality,
+      scene_background_consistency_rating: ratingData.scene_consistency,
+      overall_comic_experience_rating: ratingData.overall_experience,
+      comment: ratingData.comment,
+      would_recommend: ratingData.would_recommend,
+      time_spent_reading: ratingData.time_spent_reading,
+    };
     return apiRequest(`api/storybook/${storybookId}/rate`, {
       method: 'POST',
-      body: JSON.stringify(ratingData),
+      body: JSON.stringify(apiPayload),
       headers: { 'Authorization': `Bearer ${token}` },
       requireAuth: true,
     });

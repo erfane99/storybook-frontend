@@ -19,6 +19,7 @@ import { JobData } from '@/hooks/use-job-polling';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getClientSupabase } from '@/lib/supabase/client';
 import { api } from '@/lib/api-client';
+import { StoryCharacter, createDefaultMainCharacter } from '@/lib/types';
 
 export interface StoryFormData {
   title: string;
@@ -37,6 +38,8 @@ export interface StoryFormData {
   // NEW: Previous image tracking properties
   isUsingPreviousImage?: boolean;
   selectedPreviousCartoon?: any;
+  // NEW: Multi-character support (up to 4 characters)
+  characters: StoryCharacter[];
 }
 
 export function MultiStepStoryFormWithJobs() {
@@ -55,6 +58,8 @@ export function MultiStepStoryFormWithJobs() {
     // NEW: Initialize tracking properties
     isUsingPreviousImage: false,
     selectedPreviousCartoon: null,
+    // NEW: Initialize characters array with one main character
+    characters: [createDefaultMainCharacter()],
   });
 
   const router = useRouter();
@@ -251,16 +256,30 @@ export function MultiStepStoryFormWithJobs() {
 
         console.log('🤖 Starting auto story generation with comic book layout...');
         console.log('🎨 Character art style:', formData.cartoonStyle);
+        console.log('👥 Characters:', formData.characters.length);
         console.log('🚀 DEBUG: About to call api.startAutoStoryJob...');
         
-        // ENHANCED: Pass complete context for comic book generation
+        // Update main character with cartoonized URL and description before sending
+        const updatedCharacters = formData.characters.map((char, index) => {
+          if (index === 0 && char.role === 'main') {
+            return {
+              ...char,
+              cartoonImageUrl: formData.cartoonizedUrl,
+              characterDescription: formData.characterDescription,
+            };
+          }
+          return char;
+        });
+        
+        // ENHANCED: Pass complete context for comic book generation including multi-character support
         const { jobId: newJobId, pollingUrl: newPollingUrl } = await api.startAutoStoryJob({
           genre: formData.selectedGenre,
           characterDescription: formData.characterDescription,
           cartoonImageUrl: formData.cartoonizedUrl,
           audience: formData.audience,
-          characterArtStyle: formData.cartoonStyle, // NEW: Character art style
-          layoutType: 'comic-book-panels', // NEW: Always comic book layout
+          characterArtStyle: formData.cartoonStyle,
+          layoutType: 'comic-book-panels',
+          characters: updatedCharacters, // NEW: Multi-character support
         });
 
         console.log('🚀 DEBUG: API call successful, jobId:', newJobId);
@@ -303,9 +322,22 @@ export function MultiStepStoryFormWithJobs() {
 
         console.log('📖 Starting manual story transformation to comic book format...');
         console.log('🎨 Character art style:', formData.cartoonStyle);
+        console.log('👥 Characters:', formData.characters.length);
         console.log('🚀 DEBUG: About to call api.startStorybookJob...');
 
-        // ENHANCED: Pass complete context for comic book generation
+        // Update main character with cartoonized URL and description before sending
+        const updatedCharacters = formData.characters.map((char, index) => {
+          if (index === 0 && char.role === 'main') {
+            return {
+              ...char,
+              cartoonImageUrl: formData.cartoonizedUrl,
+              characterDescription: formData.characterDescription,
+            };
+          }
+          return char;
+        });
+
+        // ENHANCED: Pass complete context for comic book generation including multi-character support
         const { jobId: newJobId, pollingUrl: newPollingUrl } = await api.startStorybookJob({
           title: formData.title,
           story: formData.story,
@@ -313,9 +345,10 @@ export function MultiStepStoryFormWithJobs() {
           pages: [], // Empty - worker will generate comic book pages with panels
           audience: formData.audience,
           isReusedImage: true,
-          characterDescription: formData.characterDescription, // NEW: Character description
-          characterArtStyle: formData.cartoonStyle, // NEW: Character art style
-          layoutType: 'comic-book-panels', // NEW: Always comic book layout
+          characterDescription: formData.characterDescription,
+          characterArtStyle: formData.cartoonStyle,
+          layoutType: 'comic-book-panels',
+          characters: updatedCharacters, // NEW: Multi-character support
         });
 
         console.log('🚀 DEBUG: Manual story API call successful, jobId:', newJobId);
@@ -385,7 +418,14 @@ export function MultiStepStoryFormWithJobs() {
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return <Step1_Title value={formData.title} onChange={(title) => updateFormData({ title })} />;
+        return (
+          <Step1_Title 
+            title={formData.title} 
+            onTitleChange={(title) => updateFormData({ title })}
+            characters={formData.characters}
+            onCharactersChange={(characters) => updateFormData({ characters })}
+          />
+        );
       case 2:
         return <Step2_Image formData={formData} updateFormData={updateFormData} />;
       case 3:
@@ -433,11 +473,14 @@ export function MultiStepStoryFormWithJobs() {
     }
   };
 
-  // NEW: Enhanced validation with Step 3 skip consideration
+  // NEW: Enhanced validation with Step 3 skip consideration and multi-character support
   const isNextDisabled = () => {
     switch (currentStep) {
       case 1:
-        return !formData.title.trim();
+        // Title required + all characters must have names filled
+        const hasTitle = formData.title.trim().length > 0;
+        const allCharactersValid = formData.characters.every(char => char.name.trim().length > 0);
+        return !hasTitle || !allCharactersValid;
       case 2:
         return !formData.characterImage && !formData.imageUrl;
       case 3:
