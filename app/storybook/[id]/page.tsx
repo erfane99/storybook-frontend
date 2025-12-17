@@ -41,6 +41,10 @@ interface Scene {
   dialogue?: string;
   hasSpeechBubble?: boolean;
   speechBubbleStyle?: 'speech' | 'thought' | 'shout' | 'whisper' | 'narrative';
+  // NEW: AI-driven speech bubble positioning
+  speakerName?: string;
+  speakerPosition?: 'left' | 'center' | 'right';
+  bubblePosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center';
   environmentalContext?: string;
   professionalStandards?: boolean;
   imageGenerated?: boolean;
@@ -351,12 +355,13 @@ export default function StorybookPage() {
       </div>
     )}
 
-    {/* Speech Bubble Overlay */}
+    {/* Speech Bubble Overlay - AI-driven positioning with fallback */}
     {scene.hasSpeechBubble && scene.dialogue && (
       <SpeechBubble
         dialogue={scene.dialogue}
         style={scene.speechBubbleStyle || 'speech'}
-        position={sceneIndex % 2 === 0 ? 'top-right' : 'top-left'}
+        position={scene.bubblePosition || (sceneIndex % 2 === 0 ? 'top-right' : 'top-left')}
+        speakerPosition={scene.speakerPosition}
       />
     )}
   </div>
