@@ -24,6 +24,7 @@ import { api } from '@/lib/api';
 import { RatingModal, RatingData } from '@/components/storybook/RatingModal';
 import { FeedbackModal } from '@/components/storybook/FeedbackModal';
 import { ExistingRating } from '@/components/storybook/ExistingRating';
+import { SpeechBubble } from '@/components/storybook/SpeechBubble';
 
 interface Scene {
   description: string;
@@ -39,6 +40,7 @@ interface Scene {
   visualPriority?: string;
   dialogue?: string;
   hasSpeechBubble?: boolean;
+  speechBubbleStyle?: 'speech' | 'thought' | 'shout' | 'whisper' | 'narrative';
   environmentalContext?: string;
   professionalStandards?: boolean;
   imageGenerated?: boolean;
@@ -347,6 +349,15 @@ export default function StorybookPage() {
       <div className="w-full h-full bg-muted flex items-center justify-center">
         <p className="text-muted-foreground text-sm">Panel not generated</p>
       </div>
+    )}
+
+    {/* Speech Bubble Overlay */}
+    {scene.hasSpeechBubble && scene.dialogue && (
+      <SpeechBubble
+        dialogue={scene.dialogue}
+        style={scene.speechBubbleStyle || 'speech'}
+        position={sceneIndex % 2 === 0 ? 'top-right' : 'top-left'}
+      />
     )}
   </div>
   
