@@ -367,13 +367,46 @@ export default function StorybookPage() {
   </div>
   
   {/* Narration Caption - BELOW image, professional comic book style, responsive */}
-  {scene.narration && (
-    <div className="bg-black rounded-md p-2 sm:p-3 lg:p-4 border-2 border-yellow-400/80">
-      <p className="text-white text-xs sm:text-sm lg:text-base leading-relaxed text-center font-medium">
-        {scene.narration}
-      </p>
-    </div>
-  )}
+{scene.narration && (
+  <div className="bg-black rounded-md p-2 sm:p-3 lg:p-4 border-2 border-yellow-400/80">
+    <p className="text-white text-xs sm:text-sm lg:text-base leading-relaxed text-center font-medium">
+      {(() => {
+        // Strip dialogue from narration if it's already in a speech bubble
+        if (scene.hasSpeechBubble && scene.dialogue) {
+          // Remove the dialogue and any surrounding quotes/attribution
+          let cleanedNarration = scene.narration;
+          
+          // Remove exact dialogue match (with or without quotes)
+          cleanedNarration = cleanedNarration
+            .replace(new RegExp(`["']${scene.dialogue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`, 'gi'), '')
+            .replace(new RegExp(`${scene.dialogue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi'), '');
+          
+          // Clean up common dialogue attribution patterns
+          cleanedNarration = cleanedNarration
+            .replace(/\s*,?\s*(she|he|they|it)\s+(said|says|shouted|shouts|whispered|whispers|thought|thinks|asked|asks|exclaimed|exclaims|replied|replies|responded|responds|declared|declares|called|calls)\.?\s*/gi, '')
+            .replace(/\s*,?\s*with\s+(determination|excitement|fear|joy|sadness|concern|hope|wonder|curiosity|confidence)\s*/gi, '');
+          
+          // Clean up extra spaces, punctuation
+          cleanedNarration = cleanedNarration
+            .replace(/\s+/g, ' ')
+            .replace(/\s+([.,!?])/g, '$1')
+            .replace(/^\s*[.,!?]\s*/g, '')
+            .trim();
+          
+          // If cleaning removed everything, hide narration entirely
+          if (cleanedNarration.length < 10) {
+            return null;
+          }
+          
+          return cleanedNarration;
+        }
+        
+        // No speech bubble, return narration as-is
+        return scene.narration;
+      })()}
+    </p>
+  </div>
+)}
 </div>
                 );
               })}
