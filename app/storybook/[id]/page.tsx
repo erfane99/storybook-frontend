@@ -360,7 +360,7 @@ export default function StorybookPage() {
       <SpeechBubble
         dialogue={scene.dialogue}
         style={scene.speechBubbleStyle || 'speech'}
-        position={scene.bubblePosition || (sceneIndex % 2 === 0 ? 'top-right' : 'top-left')}
+        position={scene.bubblePosition || 'top-center'}
         speakerPosition={scene.speakerPosition}
       />
     )}
