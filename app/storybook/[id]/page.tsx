@@ -24,7 +24,8 @@ import { api } from '@/lib/api';
 import { RatingModal, RatingData } from '@/components/storybook/RatingModal';
 import { FeedbackModal } from '@/components/storybook/FeedbackModal';
 import { ExistingRating } from '@/components/storybook/ExistingRating';
-import { SpeechBubble } from '@/components/storybook/SpeechBubble';
+// DEPRECATED: Speech bubbles are now generated directly by Gemini in panel images
+// import { SpeechBubble } from '@/components/storybook/SpeechBubble';
 
 interface Scene {
   description: string;
@@ -355,15 +356,8 @@ export default function StorybookPage() {
       </div>
     )}
 
-    {/* Speech Bubble Overlay - AI-driven positioning with fallback */}
-    {scene.hasSpeechBubble && scene.dialogue && (
-      <SpeechBubble
-        dialogue={scene.dialogue}
-        style={scene.speechBubbleStyle || 'speech'}
-        position={scene.bubblePosition || 'top-center'}
-        speakerPosition={scene.speakerPosition}
-      />
-    )}
+    {/* REMOVED: Speech bubbles are now rendered directly in panel images by Gemini */}
+    {/* This eliminates duplicate bubbles (one in image, one as HTML overlay) */}
   </div>
   
   {/* Narration Caption - BELOW image, professional comic book style, responsive */}

@@ -1,3 +1,9 @@
+// DEPRECATED: Speech bubbles are now generated directly by Gemini in panel images
+// for professional comic book quality. This component is kept for potential rollback
+// but is no longer used in the storybook display pages.
+// The HTML overlay approach caused duplicate bubbles (one in image, one as overlay).
+// Date deprecated: December 2024
+
 'use client';
 
 import React from 'react';
