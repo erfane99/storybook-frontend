@@ -51,6 +51,10 @@ interface Scene {
   imageGenerated?: boolean;
   characterDNAUsed?: boolean;
   environmentalDNAUsed?: boolean;
+  // NEW: Spiegelman emotional weight for dynamic panel sizing (1-10 scale)
+  emotionalWeight?: number;
+  // NEW: Silent panel flag - panel has no text
+  isSilent?: boolean;
 }
 
 interface Page {
@@ -324,8 +328,15 @@ export default function StorybookPage() {
                   .slice(0, pageIndex)
                   .reduce((sum, p) => sum + p.scenes.length, 0) + sceneIndex + 1;
                 
+                // Dynamic panel sizing based on emotional weight (Spiegelman principle)
+                // Weight 8-10: Full width (col-span-2) for climax/high-impact panels
+                // Weight 1-7: Normal single column
+                const emotionalWeight = scene.emotionalWeight || 5;
+                const isHighImpact = emotionalWeight >= 8;
+                const panelSpanClass = isHighImpact ? 'sm:col-span-2' : '';
+                
                 return (
-                  <div key={sceneIndex} className="flex flex-col gap-2 sm:gap-3">
+                  <div key={sceneIndex} className={`flex flex-col gap-2 sm:gap-3 ${panelSpanClass}`}>
   {/* Panel Image Container - Responsive sizing */}
   <div className="relative aspect-[4/3] sm:aspect-[4/3] lg:aspect-[16/10] xl:aspect-[4/3] rounded-lg overflow-hidden border-2 border-primary/20 hover:border-primary/40 transition-all shadow-sm hover:shadow-md">
     {/* Panel number badge - Responsive sizing */}
