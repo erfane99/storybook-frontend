@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Printer, Loader2, Star, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Printer, Loader2, Star, MessageSquare, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   AlertDialog,
@@ -24,6 +24,7 @@ import { api } from '@/lib/api';
 import { RatingModal, RatingData } from '@/components/storybook/RatingModal';
 import { FeedbackModal } from '@/components/storybook/FeedbackModal';
 import { ExistingRating } from '@/components/storybook/ExistingRating';
+import { BookViewer } from '@/components/storybook/BookViewer';
 // DEPRECATED: Speech bubbles are now generated directly by Gemini in panel images
 // import { SpeechBubble } from '@/components/storybook/SpeechBubble';
 
@@ -69,6 +70,7 @@ interface Storybook {
   pages: Page[];
   audience: 'children' | 'young_adults' | 'adults';
   character_description?: string;
+  cover_image?: string;
   is_paid: boolean;
 }
 
@@ -117,6 +119,7 @@ export default function StorybookPage() {
   const [ratingModalOpen, setRatingModalOpen] = useState(false);
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [existingRating, setExistingRating] = useState<RatingData | null>(null);
+  const [bookViewerOpen, setBookViewerOpen] = useState(false);
   const readingStartTimeRef = useRef<number>(Date.now());
   const supabase = getClientSupabase();
 
@@ -476,13 +479,23 @@ export default function StorybookPage() {
 
             <div className="flex justify-center space-x-4">
               {isComplete && (
-                <Button
-                  onClick={() => setPrintDialogOpen(true)}
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  <Printer className="h-4 w-4 mr-2" />
-                  Print Professionally ($40)
-                </Button>
+                <>
+                  <Button
+                    onClick={() => setBookViewerOpen(true)}
+                    variant="outline"
+                    className="border-primary text-primary hover:bg-primary/10"
+                  >
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    Read as Book
+                  </Button>
+                  <Button
+                    onClick={() => setPrintDialogOpen(true)}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    Print Professionally ($40)
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -545,6 +558,21 @@ export default function StorybookPage() {
           });
         }}
       />
+
+      {/* Book Viewer Modal */}
+      {bookViewerOpen && storybook && (
+        <BookViewer
+          storybook={{
+            id: storybook.id,
+            title: storybook.title,
+            coverImage: storybook.cover_image,
+            pages: storybook.pages,
+            audience: storybook.audience,
+          }}
+          onClose={() => setBookViewerOpen(false)}
+          onRate={() => setRatingModalOpen(true)}
+        />
+      )}
     </div>
   );
 }
