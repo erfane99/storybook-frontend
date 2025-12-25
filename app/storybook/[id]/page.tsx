@@ -2,11 +2,10 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Printer, Loader2, Star, MessageSquare, BookOpen } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,33 +79,6 @@ const audienceLabels = {
   adults: 'For Adults'
 };
 
-const audienceStyles = {
-  children: {
-    container: 'gap-8 p-8',
-    card: 'rounded-3xl shadow-lg border-4',
-    image: 'rounded-2xl',
-    text: 'text-xl font-comic leading-relaxed',
-    emotion: 'text-lg font-medium text-primary',
-    grid: 'grid-cols-1 md:grid-cols-2 gap-8',
-  },
-  young_adults: {
-    container: 'gap-6 p-6',
-    card: 'rounded-xl shadow-md border-2',
-    image: 'rounded-lg',
-    text: 'text-base font-medium leading-snug',
-    emotion: 'text-sm font-semibold text-muted-foreground',
-    grid: 'grid-cols-1 md:grid-cols-3 gap-6',
-  },
-  adults: {
-    container: 'gap-4 p-4',
-    card: 'rounded-md shadow-sm border',
-    image: 'rounded-sm',
-    text: 'text-sm font-serif leading-tight',
-    emotion: 'text-xs font-medium text-muted-foreground',
-    grid: 'grid-cols-1 md:grid-cols-4 gap-4',
-  },
-};
-
 export default function StorybookPage() {
   const params = useParams();
   const router = useRouter();
@@ -122,6 +94,11 @@ export default function StorybookPage() {
   const [bookViewerOpen, setBookViewerOpen] = useState(false);
   const readingStartTimeRef = useRef<number>(Date.now());
   const supabase = getClientSupabase();
+
+  // Check if storybook is complete (all panels generated)
+  const isComplete = storybook?.pages?.every((page: Page) => 
+    page.scenes?.every((scene: Scene) => scene.generatedImage)
+  );
 
   useEffect(() => {
     if (!user) {
@@ -177,6 +154,13 @@ export default function StorybookPage() {
 
     fetchRating();
   }, [storybook, user, params.id, supabase]);
+
+  // Auto-open BookViewer when storybook is complete
+  useEffect(() => {
+    if (!loading && storybook && isComplete && !bookViewerOpen) {
+      setBookViewerOpen(true);
+    }
+  }, [loading, storybook, isComplete]);
 
   const handleRatingSubmit = async (ratingData: RatingData) => {
     try {
@@ -239,23 +223,6 @@ export default function StorybookPage() {
     return null;
   }
 
-  const getGridCols = (sceneCount: number) => {
-    switch (sceneCount) {
-      case 1:
-        return 'grid-cols-1';
-      case 2:
-        return 'grid-cols-1 sm:grid-cols-2';
-      case 3:
-        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
-      default:
-        return 'grid-cols-1';
-    }
-  };
-
-  const isComplete = storybook?.pages?.every((page: Page) => 
-    page.scenes?.every((scene: Scene) => scene.generatedImage)
-  );
-
   return (
     <div className="min-h-screen bg-background py-12">
       <div className="container max-w-7xl 2xl:max-w-[1600px]">
@@ -304,127 +271,69 @@ export default function StorybookPage() {
           <div className="space-y-12">
             {/* Character DNA hidden - used only for AI generation backend */}
 
-            <Card>
-  <CardHeader className="bg-primary text-primary-foreground">
-    <CardTitle className="flex items-center justify-between">
-      <span>Your Comic Book</span>
-      <span className="text-sm font-normal">
-        {storybook.pages.length} Pages • {storybook.pages.flatMap(page => page.scenes).length} Panels
-      </span>
-    </CardTitle>
-  </CardHeader>
-  <CardContent className="p-6">
-    <div className="space-y-8">
-      {storybook.pages.map((page: Page, pageIndex: number) => (
-        <Card key={pageIndex} className="overflow-hidden border-2">
-          <CardHeader className="bg-primary/5 border-b py-3">
-            <CardTitle className="flex items-center justify-between text-base">
-              <span>Page {pageIndex + 1}</span>
-              <Badge variant="outline">{page.scenes.length} Panels</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-              {page.scenes.map((scene: Scene, sceneIndex: number) => {
-                // Calculate global panel number across all pages
-                const globalPanelNumber = storybook.pages
-                  .slice(0, pageIndex)
-                  .reduce((sum, p) => sum + p.scenes.length, 0) + sceneIndex + 1;
+            {/* Hero Card - Primary Storybook Experience */}
+            <Card className="overflow-hidden border-2 shadow-lg">
+              {/* Cover Image or Gradient Placeholder */}
+              <div className="relative h-64 sm:h-80 lg:h-96 overflow-hidden">
+                {storybook.cover_image ? (
+                  <img
+                    src={storybook.cover_image}
+                    alt={storybook.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-primary/80 via-primary to-primary/60" />
+                )}
+                {/* Overlay for text readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
                 
-                // Dynamic panel sizing based on emotional weight (Spiegelman principle)
-                // Weight 8-10: Full width (col-span-2) for climax/high-impact panels
-                // Weight 1-7: Normal single column
-                const emotionalWeight = scene.emotionalWeight || 5;
-                const isHighImpact = emotionalWeight >= 8;
-                const panelSpanClass = isHighImpact ? 'sm:col-span-2' : '';
-                
-                return (
-                  <div key={sceneIndex} className={`flex flex-col gap-2 sm:gap-3 ${panelSpanClass}`}>
-  {/* Panel Image Container - Responsive sizing */}
-  <div className="relative aspect-[4/3] sm:aspect-[4/3] lg:aspect-[16/10] xl:aspect-[4/3] rounded-lg overflow-hidden border-2 border-primary/20 hover:border-primary/40 transition-all shadow-sm hover:shadow-md">
-    {/* Panel number badge - Responsive sizing */}
-    <div className="absolute top-2 left-2 z-10 bg-primary text-primary-foreground text-xs sm:text-sm font-bold rounded-full w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 flex items-center justify-center shadow-lg">
-      {globalPanelNumber}
-    </div>
-    
-    {/* Panel image - FULL visibility, no overlay */}
-    {scene.generatedImage ? (
-      <img
-        src={scene.generatedImage}
-        alt={`Panel ${globalPanelNumber}`}
-        className="w-full h-full object-cover"
-        onLoad={() => console.log('✅ Panel loaded:', globalPanelNumber, scene.generatedImage)}
-        onError={(e) => {
-          console.error('❌ Panel failed to load:', {
-            url: scene.generatedImage,
-            panel: globalPanelNumber,
-            page: pageIndex + 1,
-            scene: sceneIndex + 1
-          });
-          e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect width="400" height="300" fill="%23ddd"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="18" fill="%23999"%3EPanel Not Available%3C/text%3E%3C/svg%3E';
-        }}
-      />
-    ) : (
-      <div className="w-full h-full bg-muted flex items-center justify-center">
-        <p className="text-muted-foreground text-sm">Panel not generated</p>
-      </div>
-    )}
+                {/* Title and Badge positioned over image */}
+                <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8">
+                  <Badge className="mb-3 bg-white/90 text-primary hover:bg-white">
+                    {audienceLabels[storybook.audience as keyof typeof audienceLabels]}
+                  </Badge>
+                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white drop-shadow-lg">
+                    {storybook.title}
+                  </h2>
+                  <p className="text-white/80 mt-2 text-sm sm:text-base">
+                    {storybook.pages.length} Pages • {storybook.pages.flatMap(page => page.scenes).length} Panels
+                  </p>
+                </div>
+              </div>
 
-    {/* REMOVED: Speech bubbles are now rendered directly in panel images by Gemini */}
-    {/* This eliminates duplicate bubbles (one in image, one as HTML overlay) */}
-  </div>
-  
-  {/* Narration Caption - BELOW image, professional comic book style, responsive */}
-{scene.narration && (
-  <div className="bg-black rounded-md p-2 sm:p-3 lg:p-4 border-2 border-yellow-400/80">
-    <p className="text-white text-xs sm:text-sm lg:text-base leading-relaxed text-center font-medium">
-      {(() => {
-        // Strip dialogue from narration if it's already in a speech bubble
-        if (scene.hasSpeechBubble && scene.dialogue) {
-          // Remove the dialogue and any surrounding quotes/attribution
-          let cleanedNarration = scene.narration;
-          
-          // Remove exact dialogue match (with or without quotes)
-          cleanedNarration = cleanedNarration
-            .replace(new RegExp(`["']${scene.dialogue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`, 'gi'), '')
-            .replace(new RegExp(`${scene.dialogue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi'), '');
-          
-          // Clean up common dialogue attribution patterns
-          cleanedNarration = cleanedNarration
-            .replace(/\s*,?\s*(she|he|they|it)\s+(said|says|shouted|shouts|whispered|whispers|thought|thinks|asked|asks|exclaimed|exclaims|replied|replies|responded|responds|declared|declares|called|calls)\.?\s*/gi, '')
-            .replace(/\s*,?\s*with\s+(determination|excitement|fear|joy|sadness|concern|hope|wonder|curiosity|confidence)\s*/gi, '');
-          
-          // Clean up extra spaces, punctuation
-          cleanedNarration = cleanedNarration
-            .replace(/\s+/g, ' ')
-            .replace(/\s+([.,!?])/g, '$1')
-            .replace(/^\s*[.,!?]\s*/g, '')
-            .trim();
-          
-          // If cleaning removed everything, hide narration entirely
-          if (cleanedNarration.length < 10) {
-            return null;
-          }
-          
-          return cleanedNarration;
-        }
-        
-        // No speech bubble, return narration as-is
-        return scene.narration;
-      })()}
-    </p>
-  </div>
-)}
-</div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  </CardContent>
-</Card>
+              {/* Action Buttons */}
+              <CardContent className="p-6 sm:p-8">
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  {isComplete && (
+                    <>
+                      <Button
+                        size="lg"
+                        onClick={() => setBookViewerOpen(true)}
+                        className="w-full sm:w-auto text-lg px-8 py-6"
+                      >
+                        <BookOpen className="h-5 w-5 mr-2" />
+                        📖 Read Your Story
+                      </Button>
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        onClick={() => setPrintDialogOpen(true)}
+                        className="w-full sm:w-auto"
+                      >
+                        <Printer className="h-5 w-5 mr-2" />
+                        Print Professionally ($40)
+                      </Button>
+                    </>
+                  )}
+                  {!isComplete && (
+                    <div className="text-center text-muted-foreground">
+                      <p className="text-lg font-medium">Your storybook is still being generated...</p>
+                      <p className="text-sm mt-1">Come back soon to read the complete story!</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Rating & Feedback Section */}
             {isComplete && (
@@ -477,27 +386,6 @@ export default function StorybookPage() {
               </div>
             )}
 
-            <div className="flex justify-center space-x-4">
-              {isComplete && (
-                <>
-                  <Button
-                    onClick={() => setBookViewerOpen(true)}
-                    variant="outline"
-                    className="border-primary text-primary hover:bg-primary/10"
-                  >
-                    <BookOpen className="h-4 w-4 mr-2" />
-                    Read as Book
-                  </Button>
-                  <Button
-                    onClick={() => setPrintDialogOpen(true)}
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    Print Professionally ($40)
-                  </Button>
-                </>
-              )}
-            </div>
           </div>
         ) : (
           <Card>

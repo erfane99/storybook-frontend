@@ -234,6 +234,16 @@ export function BookPage({
   // Render Content Page with panels
   if (type === 'content' && pageData) {
     const scenes = pageData.scenes || [];
+    const sceneCount = scenes.length;
+    
+    // Calculate panel height based on number of scenes to prevent overflow
+    // Each panel gets equal share of available height minus padding and page number
+    const getPanelHeightClass = () => {
+      if (sceneCount === 1) return 'h-[85%]';
+      if (sceneCount === 2) return 'h-[46%]';
+      if (sceneCount === 3) return 'h-[30%]';
+      return 'h-[22%]'; // 4 panels
+    };
     
     return (
       <div 
@@ -243,26 +253,27 @@ export function BookPage({
           styles.paperTexture,
           styles.cornerRadius,
           styles.shadowStyle,
-          'flex flex-col p-4 md:p-6',
+          'flex flex-col p-3 md:p-4 overflow-hidden',
           className
         )}
       >
-        {/* Page content area */}
+        {/* Page content area - overflow hidden to prevent content escaping */}
         <div className={cn(
-          'flex-1 flex flex-col',
+          'flex-1 flex flex-col overflow-hidden',
           styles.panelGap
         )}>
           {scenes.map((scene, index) => (
             <div 
               key={index}
               className={cn(
-                'flex-1 flex flex-col',
+                'flex flex-col min-h-0',
+                getPanelHeightClass(),
                 styles.animation
               )}
             >
-              {/* Panel Image */}
+              {/* Panel Image - constrained height */}
               <div className={cn(
-                'flex-1 relative overflow-hidden',
+                'flex-1 relative overflow-hidden min-h-0',
                 styles.panelBorder,
                 styles.shadowStyle
               )}>
@@ -270,7 +281,7 @@ export function BookPage({
                   <img
                     src={scene.generatedImage}
                     alt={`Panel ${index + 1}`}
-                    className="w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-cover"
                     loading="lazy"
                   />
                 ) : (
@@ -280,15 +291,15 @@ export function BookPage({
                 )}
               </div>
 
-              {/* Narration Caption (if exists) */}
+              {/* Narration Caption - constrained with ellipsis for overflow */}
               {scene.narration && !scene.isSilent && (
                 <div className={cn(
                   styles.narrationBox,
-                  'mt-2'
+                  'mt-1 flex-shrink-0 max-h-16 overflow-hidden'
                 )}>
                   <p className={cn(
                     styles.narrationText,
-                    'text-center'
+                    'text-center line-clamp-2'
                   )}>
                     {scene.narration}
                   </p>
@@ -298,9 +309,9 @@ export function BookPage({
           ))}
         </div>
 
-        {/* Page Number */}
+        {/* Page Number - always visible at bottom */}
         {pageNumber !== undefined && (
-          <div className="text-center pt-3 text-muted-foreground text-xs">
+          <div className="text-center pt-2 text-muted-foreground text-xs flex-shrink-0">
             {pageNumber}
           </div>
         )}

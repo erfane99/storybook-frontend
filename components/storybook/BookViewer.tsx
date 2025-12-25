@@ -175,16 +175,24 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
   const displayTotalPages = totalPages - 2; // Exclude cover and title from count
 
   // Determine book dimensions based on screen size
+  // Books should fill the viewport for immersive reading experience
   const getBookDimensions = () => {
     if (isMobile) {
+      // Mobile: Nearly full screen (95% width, account for controls)
       return {
-        width: Math.min(window.innerWidth - 32, 400),
-        height: Math.min(window.innerHeight - 120, 600),
+        width: Math.floor(window.innerWidth * 0.92),
+        height: Math.floor(window.innerHeight - 140),
       };
     }
+    // Desktop: Large book (70% of viewport width, maintain aspect ratio)
+    const maxWidth = Math.floor(window.innerWidth * 0.42);
+    const maxHeight = Math.floor(window.innerHeight - 100);
+    // Maintain book aspect ratio (roughly 2:3 for a nice book proportion)
+    const aspectRatio = 0.7;
+    const widthFromHeight = Math.floor(maxHeight * aspectRatio);
     return {
-      width: Math.min(window.innerWidth * 0.35, 450),
-      height: Math.min(window.innerHeight - 120, 650),
+      width: Math.min(maxWidth, widthFromHeight, 600),
+      height: Math.min(maxHeight, 850),
     };
   };
 
@@ -231,10 +239,10 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
           width={dimensions.width}
           height={dimensions.height}
           size="stretch"
-          minWidth={300}
-          maxWidth={500}
+          minWidth={280}
+          maxWidth={700}
           minHeight={400}
-          maxHeight={700}
+          maxHeight={950}
           showCover={true}
           mobileScrollSupport={true}
           onFlip={onFlip}
