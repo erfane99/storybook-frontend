@@ -236,13 +236,66 @@ export function BookPage({
     const scenes = pageData.scenes || [];
     const sceneCount = scenes.length;
     
-    // Calculate panel height based on number of scenes to prevent overflow
-    // Each panel gets equal share of available height minus padding and page number
-    const getPanelHeightClass = () => {
-      if (sceneCount === 1) return 'h-[85%]';
-      if (sceneCount === 2) return 'h-[46%]';
-      if (sceneCount === 3) return 'h-[30%]';
-      return 'h-[22%]'; // 4 panels
+    // === SPIEGELMAN DYNAMIC PANEL SIZING ===
+    // Professional comics use variable panel sizes based on emotional weight
+    // Climax panels (weight 8-10) get more space, transitions (weight 1-4) get less
+    
+    /**
+     * Calculate dynamic panel heights based on emotionalWeight (Spiegelman principle)
+     * Returns an array of flex values for each scene
+     * 
+     * Comic Book Best Practice:
+     * - High emotional weight (8-10): Larger panels for impact moments
+     * - Medium weight (5-7): Standard panel size
+     * - Low weight (1-4): Smaller panels for transitions
+     */
+    const calculateDynamicPanelWeights = (): number[] => {
+      if (sceneCount === 0) return [];
+      if (sceneCount === 1) return [1]; // Single panel gets full space
+      
+      // Get emotional weights, defaulting to 5 (medium) if not provided
+      const weights = scenes.map(scene => scene.emotionalWeight ?? 5);
+      
+      // Normalize weights to create proportional flex values
+      // Map weight 1-10 to flex multiplier 0.6-1.4 (40% variation range)
+      // This ensures panels are noticeably different but not extreme
+      const flexValues = weights.map(weight => {
+        // Clamp weight between 1-10
+        const clampedWeight = Math.max(1, Math.min(10, weight));
+        // Map to flex range: weight 1 = 0.6x, weight 5 = 1.0x, weight 10 = 1.4x
+        return 0.6 + (clampedWeight - 1) * (0.8 / 9);
+      });
+      
+      return flexValues;
+    };
+    
+    const panelFlexValues = calculateDynamicPanelWeights();
+    
+    // Calculate base height percentage (accounting for gaps and page number)
+    const getBaseHeightPercent = (): number => {
+      // Total available height percentage (accounting for padding and page number)
+      const availableHeight = 92; // ~92% after padding and page number
+      // Subtract gap space: each gap takes ~2% (gap-2 to gap-4 depending on audience)
+      const gapSpace = (sceneCount - 1) * 2;
+      return availableHeight - gapSpace;
+    };
+    
+    const baseHeight = getBaseHeightPercent();
+    const totalFlex = panelFlexValues.reduce((sum, flex) => sum + flex, 0);
+    
+    /**
+     * Get the height style for a specific panel based on its emotional weight
+     * Uses inline style for precise percentage control
+     */
+    const getPanelHeight = (index: number): string => {
+      if (sceneCount === 1) return '85%';
+      
+      const flexValue = panelFlexValues[index] ?? 1;
+      const heightPercent = (flexValue / totalFlex) * baseHeight;
+      
+      // Clamp to reasonable bounds to prevent extreme sizes
+      const clampedHeight = Math.max(15, Math.min(60, heightPercent));
+      return `${clampedHeight.toFixed(1)}%`;
     };
     
     return (
@@ -267,9 +320,9 @@ export function BookPage({
               key={index}
               className={cn(
                 'flex flex-col min-h-0',
-                getPanelHeightClass(),
                 styles.animation
               )}
+              style={{ height: getPanelHeight(index) }}
             >
               {/* Panel Image - constrained height */}
               <div className={cn(
