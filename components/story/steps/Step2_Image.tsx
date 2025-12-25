@@ -8,7 +8,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, History, Loader2, X, Calendar, Palette, RefreshCw, Search } from 'lucide-react';
+import { Upload, History, Loader2, X, Calendar, Palette, RefreshCw, Search, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { StoryFormData } from '../MultiStepStoryFormWithJobs';
 import { getClientSupabase } from '@/lib/supabase/client';
 import { api } from '@/lib/api-client';
@@ -30,6 +40,8 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
   const [selectedStyleFilter, setSelectedStyleFilter] = useState<string>('all');
   const [hasMore, setHasMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [deleteCartoonId, setDeleteCartoonId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
   const supabase = getClientSupabase();
 
@@ -310,6 +322,41 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
     fetchPreviousCartoons(true);
   };
 
+  const handleDeleteCartoon = async (id: string) => {
+    setIsDeleting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('No access token available');
+      }
+
+      await api.deleteCartoonById(id, session.access_token);
+
+      // Remove cartoon from local state
+      setPreviousCartoons(prev => prev.filter(cartoon => cartoon.id !== id));
+      
+      // If deleted cartoon was selected, clear selection
+      if (selectedCartoon?.id === id) {
+        handleClearSelection();
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Character deleted successfully',
+      });
+    } catch (error: any) {
+      console.error('❌ Failed to delete cartoon:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to delete character',
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteCartoonId(null);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
@@ -401,7 +448,7 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
                 {previousCartoons.map((cartoon) => (
                   <Card
                     key={cartoon.id}
-                    className={`cursor-pointer transition-all hover:shadow-md hover:scale-[1.02] ${
+                    className={`group cursor-pointer transition-all hover:shadow-md hover:scale-[1.02] ${
                       selectedCartoon?.id === cartoon.id ? 'ring-2 ring-primary bg-primary/5' : ''
                     }`}
                     onClick={() => handleSelectPrevious(cartoon)}
@@ -414,6 +461,18 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
                           className="absolute inset-0 w-full h-full object-cover"
                           loading="lazy"
                         />
+                        {/* Delete Button - visible on hover */}
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 left-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteCartoonId(cartoon.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                         {/* Quality Badge */}
                         {cartoon.quality && (
                           <div className="absolute top-2 right-2">
@@ -655,6 +714,35 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteCartoonId} onOpenChange={() => setDeleteCartoonId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Character?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this cartoon character. You won't be able to use it in future stories.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteCartoonId && handleDeleteCartoon(deleteCartoonId)}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -862,6 +862,17 @@ export const api = {
     });
   },
 
+  deleteCartoonById: (id: string, token: string) => {
+    // Clear related cache entries (including previous cartoons cache)
+    requestCache.clear();
+    
+    return apiRequest(`api/cartoon/delete?id=${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }, // Explicit token override
+      requireAuth: true,
+    });
+  },
+
   requestPrint: (storybook_id: string, token: string) => {
     return apiRequest('api/story/request-print', {
       method: 'POST',
