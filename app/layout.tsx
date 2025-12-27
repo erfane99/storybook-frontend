@@ -1,5 +1,5 @@
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter as FontSans } from 'next/font/google';
 import { cn } from '@/lib/utils';
 import { RootClientWrapper } from '@/app/_components/root-client-wrapper';
@@ -14,7 +14,6 @@ export const metadata: Metadata = {
   title: 'StoryCanvas - AI Storybook Generator',
   description: 'Create beautiful cartoon storybooks with AI using your own images',
   keywords: ['AI', 'storybook', 'children', 'cartoon', 'generator', 'DALL-E', 'OpenAI'],
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
   authors: [{ name: 'StoryCanvas Team' }],
   robots: 'index, follow',
   openGraph: {
@@ -23,6 +22,14 @@ export const metadata: Metadata = {
     type: 'website',
     siteName: 'StoryCanvas',
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover',
+  interactiveWidget: 'resizes-content',
 };
 
 export default function RootLayout({

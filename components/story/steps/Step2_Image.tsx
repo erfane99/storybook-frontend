@@ -398,23 +398,25 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
         <div className="space-y-4">
           {/* Style Filter */}
           {availableStyles.length > 1 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Filter by style:</span>
-              <Button
-                variant={selectedStyleFilter === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedStyleFilter('all')}
-              >
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 md:flex-wrap md:overflow-visible scrollbar-hide">
+            <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-sm text-muted-foreground flex-shrink-0 whitespace-nowrap">Filter:</span>
+            <Button
+  variant={selectedStyleFilter === 'all' ? 'default' : 'outline'}
+  size="sm"
+  className="min-h-[44px] md:min-h-0 flex-shrink-0 touch-manipulation"
+  onClick={() => setSelectedStyleFilter('all')}
+>
                 All Styles
               </Button>
               {availableStyles.map(style => (
                 <Button
-                  key={style}
-                  variant={selectedStyleFilter === style ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedStyleFilter(style)}
-                >
+                key={style}
+                variant={selectedStyleFilter === style ? 'default' : 'outline'}
+                size="sm"
+                className="min-h-[44px] md:min-h-0 flex-shrink-0 touch-manipulation"
+                onClick={() => setSelectedStyleFilter(style)}
+              >
                   {style.charAt(0).toUpperCase() + style.slice(1)}
                 </Button>
               ))}
@@ -465,7 +467,7 @@ export function Step2_Image({ formData, updateFormData }: Step2_ImageProps) {
                         <Button
                           variant="destructive"
                           size="icon"
-                          className="absolute top-2 left-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-2 left-2 h-9 w-9 md:h-7 md:w-7 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity touch-manipulation"
                           onClick={(e) => {
                             e.stopPropagation();
                             setDeleteCartoonId(cartoon.id);

@@ -171,7 +171,7 @@ export function Step5_Story({
       {storyMode === 'auto' && (
         <div className="space-y-4">
           <Label>Choose a story genre</Label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {genres.map((genre) => {
               const Icon = genre.icon;
               return (

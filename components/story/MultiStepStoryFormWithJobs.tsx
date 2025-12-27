@@ -20,6 +20,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { getClientSupabase } from '@/lib/supabase/client';
 import { api } from '@/lib/api-client';
 import { StoryCharacter, createDefaultMainCharacter } from '@/lib/types';
+import { useDevice } from '@/hooks/use-device';
 
 export interface StoryFormData {
   title: string;
@@ -585,7 +586,7 @@ export function MultiStepStoryFormWithJobs() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8">
-      <Card className="w-full max-w-md mx-auto rounded-2xl shadow-xl">
+      <Card className="w-full max-w-md mx-auto rounded-2xl shadow-xl pb-safe">
         <CardContent className="p-6">
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-center mb-2">Create Your Comic Book Story</h2>

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { BookPage } from './BookPage';
 import { BookCover } from './BookCover';
 import { cn } from '@/lib/utils';
+import { useDevice } from '@/hooks/use-device';
 
 interface Scene {
   description: string;
@@ -92,21 +93,44 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
   const bookRef = useRef<any>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [isFlipping, setIsFlipping] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [showNavigation, setShowNavigation] = useState(false);
+  const [showHint, setShowHint] = useState(true);
+  
+  // Use centralized device detection hook
+  const { isMobile, isClient } = useDevice();
 
   // Get cover image (handle both naming conventions)
   const coverImage = storybook.coverImage || storybook.cover_image;
 
-  // Check if mobile on mount and resize
+  // Auto-hide swipe hint after 3 seconds
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+    if (showHint && currentPage < 3) {
+      const timer = setTimeout(() => {
+        setShowHint(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showHint, currentPage]);
+
+  // Preload next 2 pages for smoother experience
+  useEffect(() => {
+    if (!isClient) return;
+    
+    const allScenes = storybook.pages.flatMap(page => page.scenes);
+    const panelsPerPage = getPanelsPerBookPage(storybook.audience);
+    
+    // Calculate which images to preload based on current page
+    const startIndex = currentPage * panelsPerPage;
+    const endIndex = Math.min(startIndex + (panelsPerPage * 3), allScenes.length); // Current + next 2 pages
+    
+    for (let i = startIndex; i < endIndex; i++) {
+      const scene = allScenes[i];
+      if (scene?.generatedImage) {
+        const img = new Image();
+        img.src = scene.generatedImage;
+      }
+    }
+  }, [currentPage, storybook.pages, storybook.audience, isClient]);
 
   // Prepare book pages
   const panelsPerPage = getPanelsPerBookPage(storybook.audience);
@@ -177,6 +201,11 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
   // Determine book dimensions based on screen size
   // Books should fill the viewport for immersive reading experience
   const getBookDimensions = () => {
+    // Use safe defaults during SSR
+    if (!isClient) {
+      return { width: 400, height: 600 };
+    }
+    
     if (isMobile) {
       // Mobile: Nearly full screen (95% width, account for controls)
       return {
@@ -230,7 +259,7 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
           onClick={handlePrevPage}
           disabled={isFlipping || currentPage === 0}
         >
-          <ChevronLeft className="h-8 w-8" />
+          <ChevronLeft className="h-12 w-12 md:h-8 md:w-8" />
         </Button>
 
         {/* FlipBook */}
@@ -322,19 +351,24 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
           onClick={handleNextPage}
           disabled={isFlipping || currentPage >= totalPages - 1}
         >
-          <ChevronRight className="h-8 w-8" />
+          <ChevronRight className="h-12 w-12 md:h-8 md:w-8" />
         </Button>
       </div>
 
       {/* Bottom Controls */}
       <div className={cn(
         'absolute bottom-4 left-1/2 -translate-x-1/2',
-        'flex items-center gap-4 px-6 py-3',
+        'flex items-center',
         'bg-black/50 backdrop-blur-sm rounded-full',
-        'text-white/90'
+        'text-white/90',
+        // Compact on mobile, spacious on desktop
+        isMobile ? 'gap-2 px-3 py-2' : 'gap-4 px-6 py-3'
       )}>
         {/* Page Indicator */}
-        <span className="text-sm font-medium">
+        <span className={cn(
+          'font-medium',
+          isMobile ? 'text-xs' : 'text-sm'
+        )}>
           {currentPage === 0 ? 'Cover' : 
            currentPage === 1 ? 'Title' :
            currentPage >= totalPages - 1 ? 'The End' :
@@ -345,25 +379,31 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
         <div className="w-px h-4 bg-white/30" />
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {onRate && (
             <Button
               variant="ghost"
               size="sm"
-              className="text-white/80 hover:text-white hover:bg-white/10"
+              className={cn(
+                'text-white/80 hover:text-white hover:bg-white/10',
+                isMobile && 'px-2 py-1 h-7 text-xs'
+              )}
               onClick={() => {
                 onClose();
                 onRate();
               }}
             >
-              <Star className="h-4 w-4 mr-1" />
+              <Star className={cn('mr-1', isMobile ? 'h-3 w-3' : 'h-4 w-4')} />
               Rate
             </Button>
           )}
           <Button
             variant="ghost"
             size="sm"
-            className="text-white/80 hover:text-white hover:bg-white/10"
+            className={cn(
+              'text-white/80 hover:text-white hover:bg-white/10',
+              isMobile && 'px-2 py-1 h-7 text-xs'
+            )}
             onClick={() => {
               // Share functionality
               if (navigator.share) {
@@ -378,15 +418,21 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
               }
             }}
           >
-            <Share2 className="h-4 w-4 mr-1" />
+            <Share2 className={cn('mr-1', isMobile ? 'h-3 w-3' : 'h-4 w-4')} />
             Share
           </Button>
         </div>
       </div>
 
-      {/* Touch/Swipe hints for mobile */}
-      {isMobile && currentPage === 0 && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 text-white/60 text-sm animate-pulse">
+      {/* Touch/Swipe hints for mobile - shows on first 3 pages, fades after 3 seconds */}
+      {isMobile && currentPage < 3 && (
+        <div 
+          className={cn(
+            'absolute bottom-24 left-1/2 -translate-x-1/2 text-white/60 text-sm',
+            'transition-opacity duration-500',
+            showHint ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          )}
+        >
           Swipe or tap edges to turn pages
         </div>
       )}

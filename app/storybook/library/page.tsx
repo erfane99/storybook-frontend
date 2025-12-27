@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
-import { Book, ChevronRight, PlusCircle, Trash2, Share2 } from 'lucide-react';
+import { Book, ChevronRight, PlusCircle, Trash2, Share2, RefreshCw } from 'lucide-react';
 import { formatDate } from '@/lib/utils/helpers';
 import { getClientSupabase } from '@/lib/supabase/client';
 import {
@@ -27,6 +27,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { api } from '@/lib/api';
+import { useDevice } from '@/hooks/use-device';
+import { cn } from '@/lib/utils';
 
 interface Storybook {
   id: string;
@@ -43,6 +45,35 @@ export default function LibraryPage() {
   const [storybooks, setStorybooks] = useState<Storybook[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  
+  // Pull-to-refresh state
+  const { isMobile } = useDevice();
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartY = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Extract fetchStorybooks to be reusable
+  const fetchStorybooks = useCallback(async () => {
+    try {
+      const supabase = getClientSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('No access token available');
+      }
+
+      const { storybooks: data } = await api.getUserStorybooks(session.access_token);
+      setStorybooks(data);
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to load storybooks',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
     if (!user) {
@@ -55,29 +86,38 @@ export default function LibraryPage() {
       return;
     }
 
-    async function fetchStorybooks() {
-      try {
-        const supabase = getClientSupabase();
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          throw new Error('No access token available');
-        }
+    fetchStorybooks();
+  }, [user, router, fetchStorybooks]);
 
-        const { storybooks: data } = await api.getUserStorybooks(session.access_token);
-        setStorybooks(data);
-      } catch (error: any) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: error.message || 'Failed to load storybooks',
-        });
-      } finally {
-        setLoading(false);
+  // Pull-to-refresh touch handlers (mobile only)
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (window.scrollY === 0 && !isRefreshing) {
+      touchStartY.current = e.touches[0].clientY;
+    }
+  }, [isRefreshing]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (touchStartY.current > 0 && !isRefreshing) {
+      const distance = e.touches[0].clientY - touchStartY.current;
+      if (distance > 0) {
+        setPullDistance(Math.min(distance * 0.5, 100)); // Dampen the pull
       }
     }
+  }, [isRefreshing]);
 
-    fetchStorybooks();
-  }, [user, router, toast]);
+  const handleTouchEnd = useCallback(async () => {
+    if (pullDistance > 60 && !isRefreshing) {
+      setIsRefreshing(true);
+      await fetchStorybooks();
+      setIsRefreshing(false);
+      toast({
+        title: 'Refreshed',
+        description: 'Your library has been updated.',
+      });
+    }
+    setPullDistance(0);
+    touchStartY.current = 0;
+  }, [pullDistance, isRefreshing, fetchStorybooks, toast]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -127,8 +167,38 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background py-12">
-      <div className="container max-w-4xl">
+    <div 
+      ref={containerRef}
+      className="min-h-screen bg-background py-12 relative"
+      onTouchStart={isMobile ? handleTouchStart : undefined}
+      onTouchMove={isMobile ? handleTouchMove : undefined}
+      onTouchEnd={isMobile ? handleTouchEnd : undefined}
+    >
+      {/* Pull-to-refresh indicator */}
+      {isMobile && (pullDistance > 0 || isRefreshing) && (
+        <div 
+          className={cn(
+            'absolute left-1/2 -translate-x-1/2 flex items-center justify-center',
+            'transition-all duration-200'
+          )}
+          style={{ 
+            top: Math.min(pullDistance, 60) + 8,
+            opacity: isRefreshing ? 1 : Math.min(pullDistance / 60, 1)
+          }}
+        >
+          <RefreshCw 
+            className={cn(
+              'h-6 w-6 text-primary',
+              isRefreshing && 'animate-spin'
+            )} 
+          />
+        </div>
+      )}
+      
+      <div 
+        className="container max-w-4xl transition-transform duration-200"
+        style={{ transform: isMobile && pullDistance > 0 ? `translateY(${pullDistance * 0.5}px)` : undefined }}
+      >
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-4xl font-bold">Your Stories</h1>
           <Button onClick={() => router.push('/create')}>

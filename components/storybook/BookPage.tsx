@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface Scene {
@@ -106,6 +106,8 @@ export function BookPage({
   const panelsPerPage = getPanelsPerPage(audience);
 
   // Render Cover Page
+  const [coverLoaded, setCoverLoaded] = useState(false);
+  
   if (type === 'cover') {
     return (
       <div 
@@ -119,10 +121,19 @@ export function BookPage({
       >
         {coverImage ? (
           <>
+            {/* Skeleton placeholder while loading */}
+            {!coverLoaded && (
+              <div className="absolute inset-0 bg-muted animate-pulse" />
+            )}
             <img
               src={coverImage}
               alt={`Cover for ${title}`}
-              className="w-full h-full object-cover"
+              className={cn(
+                'w-full h-full object-cover',
+                'transition-opacity duration-300',
+                coverLoaded ? 'opacity-100' : 'opacity-0'
+              )}
+              onLoad={() => setCoverLoaded(true)}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
           </>
@@ -236,6 +247,9 @@ export function BookPage({
     const scenes = pageData.scenes || [];
     const sceneCount = scenes.length;
     
+    // Track loaded images for fade-in effect
+    const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
+    
     // === SPIEGELMAN DYNAMIC PANEL SIZING ===
     // Professional comics use variable panel sizes based on emotional weight
     // Climax panels (weight 8-10) get more space, transitions (weight 1-4) get less
@@ -324,19 +338,30 @@ export function BookPage({
               )}
               style={{ height: getPanelHeight(index) }}
             >
-              {/* Panel Image - constrained height */}
+              {/* Panel Image - constrained height with loading state */}
               <div className={cn(
                 'flex-1 relative overflow-hidden min-h-0',
                 styles.panelBorder,
                 styles.shadowStyle
               )}>
                 {scene.generatedImage ? (
-                  <img
-                    src={scene.generatedImage}
-                    alt={`Panel ${index + 1}`}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    loading="lazy"
-                  />
+                  <>
+                    {/* Skeleton placeholder while loading */}
+                    {!loadedImages.has(index) && (
+                      <div className="absolute inset-0 bg-muted animate-pulse rounded" />
+                    )}
+                    <img
+                      src={scene.generatedImage}
+                      alt={`Panel ${index + 1}`}
+                      className={cn(
+                        'absolute inset-0 w-full h-full object-cover',
+                        'transition-opacity duration-300',
+                        loadedImages.has(index) ? 'opacity-100' : 'opacity-0'
+                      )}
+                      loading="lazy"
+                      onLoad={() => setLoadedImages(prev => new Set(prev).add(index))}
+                    />
+                  </>
                 ) : (
                   <div className="w-full h-full bg-muted flex items-center justify-center">
                     <span className="text-muted-foreground text-sm">Panel not available</span>
