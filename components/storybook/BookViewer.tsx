@@ -201,22 +201,32 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
   // Determine book dimensions based on screen size
   // Books should fill the viewport for immersive reading experience
   const getBookDimensions = () => {
-    // Use safe defaults during SSR
     if (!isClient) {
       return { width: 400, height: 600 };
     }
     
+    const isLandscape = window.innerWidth > window.innerHeight;
+    
     if (isMobile) {
-      // Mobile: Nearly full screen (95% width, account for controls)
+      if (isLandscape) {
+        // Mobile Landscape: Optimize for horizontal viewing
+        const maxHeight = Math.floor(window.innerHeight - 80);
+        const aspectRatio = 0.7;
+        return {
+          width: Math.floor(maxHeight * aspectRatio),
+          height: maxHeight,
+        };
+      }
+      // Mobile Portrait: Nearly full screen (95% width, account for controls)
       return {
         width: Math.floor(window.innerWidth * 0.92),
         height: Math.floor(window.innerHeight - 140),
       };
     }
+    
     // Desktop: Large book (70% of viewport width, maintain aspect ratio)
     const maxWidth = Math.floor(window.innerWidth * 0.42);
     const maxHeight = Math.floor(window.innerHeight - 100);
-    // Maintain book aspect ratio (roughly 2:3 for a nice book proportion)
     const aspectRatio = 0.7;
     const widthFromHeight = Math.floor(maxHeight * aspectRatio);
     return {
@@ -404,17 +414,28 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
               'text-white/80 hover:text-white hover:bg-white/10',
               isMobile && 'px-2 py-1 h-7 text-xs'
             )}
-            onClick={() => {
-              // Share functionality
-              if (navigator.share) {
-                navigator.share({
-                  title: storybook.title,
-                  text: `Check out "${storybook.title}" - A StoryCanvas Creation`,
-                  url: window.location.href,
-                });
-              } else {
-                // Fallback: copy to clipboard
-                navigator.clipboard.writeText(window.location.href);
+            onClick={async () => {
+              const shareData = {
+                title: storybook.title,
+                text: `Check out "${storybook.title}" - A StoryCanvas Creation`,
+                url: window.location.href,
+              };
+              
+              try {
+                if (navigator.share && navigator.canShare?.(shareData)) {
+                  await navigator.share(shareData);
+                } else {
+                  // Fallback: copy to clipboard with toast feedback
+                  await navigator.clipboard.writeText(window.location.href);
+                  // Note: You'll need to import useToast or pass a toast function as prop
+                  alert('Link copied to clipboard!');
+                }
+              } catch (err: any) {
+                // User cancelled share or error occurred
+                if (err.name !== 'AbortError') {
+                  await navigator.clipboard.writeText(window.location.href);
+                  alert('Link copied to clipboard!');
+                }
               }
             }}
           >
