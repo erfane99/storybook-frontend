@@ -12,6 +12,9 @@ interface Scene {
   hasSpeechBubble?: boolean;
   emotionalWeight?: number;
   isSilent?: boolean;
+  // Visual storytelling properties from worker
+  borderStyle?: 'clean' | 'jagged' | 'wavy' | 'broken' | 'soft' | 'none';
+  transitionType?: 'action_to_action' | 'subject_to_subject' | 'scene_to_scene' | 'moment_to_moment' | 'aspect_to_aspect';
 }
 
 interface PageData {
@@ -85,6 +88,66 @@ const audiencePageStyles = {
     shadowStyle: 'shadow-sm',
     animation: 'transition-all duration-300 ease-linear',
   },
+};
+
+/**
+ * Get dynamic border classes based on panel borderStyle
+ * Falls back to audience default if borderStyle is undefined
+ */
+const getBorderStyleClasses = (
+  borderStyle: Scene['borderStyle'],
+  audience: 'children' | 'young_adults' | 'adults'
+): string => {
+  const baseStyle = audiencePageStyles[audience].panelBorder;
+  
+  switch (borderStyle) {
+    case 'jagged':
+      // Jagged = action/danger - use sharper corners, thicker border
+      return 'border-4 border-red-400/70 rounded-sm shadow-lg';
+    case 'wavy':
+      // Wavy = dreams/memories - soft, ethereal
+      return 'border-2 border-purple-300/60 rounded-3xl shadow-inner';
+    case 'broken':
+      // Broken = impact moments - dashed/interrupted
+      return 'border-4 border-dashed border-orange-400/80 rounded-lg';
+    case 'soft':
+      // Soft = flashbacks - faded edges
+      return 'border border-gray-300/50 rounded-2xl opacity-95';
+    case 'none':
+      // Borderless = immersive
+      return 'border-0 rounded-none shadow-xl';
+    case 'clean':
+    default:
+      return baseStyle; // Use audience default
+  }
+};
+
+/**
+ * Get gutter size based on transition type
+ * Controls spacing between panels for visual pacing
+ */
+const getGutterForTransition = (
+  transitionType: Scene['transitionType'],
+  index: number
+): string => {
+  // First panel has no top gutter
+  if (index === 0) return '';
+  
+  switch (transitionType) {
+    case 'scene_to_scene':
+      // Large gutter for scene changes (time/location jump)
+      return 'mt-6';
+    case 'moment_to_moment':
+    case 'action_to_action':
+      // Tight gutter for continuous action
+      return 'mt-1';
+    case 'subject_to_subject':
+    case 'aspect_to_aspect':
+      // Medium gutter
+      return 'mt-3';
+    default:
+      return 'mt-2'; // Default medium
+  }
 };
 
 /**
@@ -324,67 +387,70 @@ export function BookPage({
           className
         )}
       >
-        {/* Page content area - overflow hidden to prevent content escaping */}
-        <div className={cn(
-          'flex-1 flex flex-col overflow-hidden',
-          styles.panelGap
-        )}>
-          {scenes.map((scene, index) => (
-            <div 
-              key={index}
-              className={cn(
-                'flex flex-col min-h-0',
-                styles.animation
-              )}
-              style={{ height: getPanelHeight(index) }}
-            >
-              {/* Panel Image - constrained height with loading state */}
-              <div className={cn(
-                'flex-1 relative overflow-hidden min-h-0',
-                styles.panelBorder,
-                styles.shadowStyle
-              )}>
-                {scene.generatedImage ? (
-                  <>
-                    {/* Skeleton placeholder while loading */}
-                    {!loadedImages.has(index) && (
-                      <div className="absolute inset-0 bg-muted animate-pulse rounded" />
-                    )}
-                    <img
-                      src={scene.generatedImage}
-                      alt={`Panel ${index + 1}`}
-                      className={cn(
-                        'absolute inset-0 w-full h-full object-cover',
-                        'transition-opacity duration-300',
-                        loadedImages.has(index) ? 'opacity-100' : 'opacity-0'
+        {/* Page content area - panels with dynamic gutters */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {scenes.map((scene, index) => {
+            const borderClasses = getBorderStyleClasses(scene.borderStyle, audience);
+            const gutterClass = getGutterForTransition(scene.transitionType, index);
+            
+            return (
+              <div 
+                key={index}
+                className={cn(
+                  'flex flex-col min-h-0',
+                  styles.animation,
+                  gutterClass
+                )}
+                style={{ height: getPanelHeight(index) }}
+              >
+                {/* Panel Image - constrained height with loading state */}
+                <div className={cn(
+                  'flex-1 relative overflow-hidden min-h-0',
+                  borderClasses,
+                  styles.shadowStyle
+                )}>
+                  {scene.generatedImage ? (
+                    <>
+                      {/* Skeleton placeholder while loading */}
+                      {!loadedImages.has(index) && (
+                        <div className="absolute inset-0 bg-muted animate-pulse rounded" />
                       )}
-                      loading="lazy"
-                      onLoad={() => setLoadedImages(prev => new Set(prev).add(index))}
-                    />
-                  </>
-                ) : (
-                  <div className="w-full h-full bg-muted flex items-center justify-center">
-                    <span className="text-muted-foreground text-sm">Panel not available</span>
+                      <img
+                        src={scene.generatedImage}
+                        alt={`Panel ${index + 1}`}
+                        className={cn(
+                          'absolute inset-0 w-full h-full object-cover',
+                          'transition-opacity duration-300',
+                          loadedImages.has(index) ? 'opacity-100' : 'opacity-0'
+                        )}
+                        loading="lazy"
+                        onLoad={() => setLoadedImages(prev => new Set(prev).add(index))}
+                      />
+                    </>
+                  ) : (
+                    <div className="w-full h-full bg-muted flex items-center justify-center">
+                      <span className="text-muted-foreground text-sm">Panel not available</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Narration Caption - constrained with ellipsis for overflow */}
+                {scene.narration && !scene.isSilent && (
+                  <div className={cn(
+                    styles.narrationBox,
+                    'mt-1 flex-shrink-0 max-h-16 overflow-hidden'
+                  )}>
+                    <p className={cn(
+                      styles.narrationText,
+                      'text-center line-clamp-2'
+                    )}>
+                      {scene.narration}
+                    </p>
                   </div>
                 )}
               </div>
-
-              {/* Narration Caption - constrained with ellipsis for overflow */}
-              {scene.narration && !scene.isSilent && (
-                <div className={cn(
-                  styles.narrationBox,
-                  'mt-1 flex-shrink-0 max-h-16 overflow-hidden'
-                )}>
-                  <p className={cn(
-                    styles.narrationText,
-                    'text-center line-clamp-2'
-                  )}>
-                    {scene.narration}
-                  </p>
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Page Number - always visible at bottom */}

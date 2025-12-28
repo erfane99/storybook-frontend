@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -55,6 +55,9 @@ interface Scene {
   emotionalWeight?: number;
   // NEW: Silent panel flag - panel has no text
   isSilent?: boolean;
+  // NEW: Visual storytelling properties from worker
+  borderStyle?: 'clean' | 'jagged' | 'wavy' | 'broken' | 'soft' | 'none';
+  transitionType?: 'action_to_action' | 'subject_to_subject' | 'scene_to_scene' | 'moment_to_moment' | 'aspect_to_aspect';
 }
 
 interface Page {
@@ -82,6 +85,7 @@ const audienceLabels = {
 export default function StorybookPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
   const [storybook, setStorybook] = useState<Storybook | null>(null);
@@ -161,6 +165,16 @@ export default function StorybookPage() {
       setBookViewerOpen(true);
     }
   }, [loading, storybook, isComplete]);
+
+  // Handle autoRead query parameter from library "Read" button
+  useEffect(() => {
+    const autoRead = searchParams.get('autoRead');
+    if (autoRead === 'true' && storybook && isComplete) {
+      setBookViewerOpen(true);
+      // Clean up URL by removing query parameter
+      window.history.replaceState({}, '', `/storybook/${storybook.id}`);
+    }
+  }, [searchParams, storybook, isComplete]);
 
   const handleRatingSubmit = async (ratingData: RatingData) => {
     try {

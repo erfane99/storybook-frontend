@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
-import { Book, ChevronRight, PlusCircle, Trash2, Share2, RefreshCw } from 'lucide-react';
+import { Book, ChevronRight, PlusCircle, Trash2, Share2, RefreshCw, BookOpen } from 'lucide-react';
 import { formatDate } from '@/lib/utils/helpers';
 import { getClientSupabase } from '@/lib/supabase/client';
 import {
@@ -34,7 +36,21 @@ interface Storybook {
   id: string;
   title: string;
   created_at: string;
+  cover_image?: string;
+  audience?: 'children' | 'young_adults' | 'adults';
+  pages?: { scenes: any[] }[];
 }
+
+const audienceLabels = {
+  children: '👶 Children',
+  young_adults: '🧑 Young Adults',
+  adults: '👤 Adults'
+};
+
+const getPanelCount = (pages?: { scenes: any[] }[]): number => {
+  if (!pages) return 0;
+  return pages.reduce((sum, page) => sum + (page.scenes?.length || 0), 0);
+};
 
 export const dynamic = 'force-dynamic';
 
@@ -210,13 +226,29 @@ export default function LibraryPage() {
         {loading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-48" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-24 w-full" />
-                </CardContent>
+              <Card key={i} className="overflow-hidden">
+                <div className="flex">
+                  {/* Cover skeleton */}
+                  <div className="flex-shrink-0 w-24 md:w-28">
+                    <Skeleton className="aspect-[3/4] w-full" />
+                  </div>
+                  {/* Content skeleton */}
+                  <div className="flex-1 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Skeleton className="h-6 w-48" />
+                      <div className="flex gap-2">
+                        <Skeleton className="h-8 w-8 rounded" />
+                        <Skeleton className="h-8 w-8 rounded" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-5 w-24 mb-2" />
+                    <Skeleton className="h-4 w-40 mb-4" />
+                    <div className="flex gap-2 mt-auto">
+                      <Skeleton className="h-9 w-24" />
+                      <Skeleton className="h-9 w-20" />
+                    </div>
+                  </div>
+                </div>
               </Card>
             ))}
           </div>
@@ -237,65 +269,122 @@ export default function LibraryPage() {
           </Card>
         ) : (
           <div className="grid gap-6">
-            {storybooks.map((storybook) => (
-              <Card key={storybook.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>{storybook.title}</CardTitle>
-                    <div className="flex items-center gap-2">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleShare(storybook.id)}
-                              className="hover:bg-secondary"
-                            >
-                              <Share2 className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Copy share link</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeleteId(storybook.id)}
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Delete storybook</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+            {storybooks.map((storybook) => {
+              const pageCount = storybook.pages?.length || 0;
+              const panelCount = getPanelCount(storybook.pages);
+              
+              return (
+                <Card key={storybook.id} className="hover:shadow-lg transition-shadow overflow-hidden">
+                  <div className="flex">
+                    {/* Cover image thumbnail */}
+                    <div className="flex-shrink-0 w-24 md:w-28">
+                      {storybook.cover_image ? (
+                        <div className="aspect-[3/4] w-full relative">
+                          <Image
+                            src={storybook.cover_image}
+                            alt={storybook.title}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 96px, 112px"
+                          />
+                        </div>
+                      ) : (
+                        <div className="aspect-[3/4] w-full bg-gradient-to-br from-primary/60 to-primary/90 flex items-center justify-center">
+                          <Book className="h-8 w-8 text-primary-foreground/80" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Content area */}
+                    <div className="flex-1 flex flex-col p-4">
+                      {/* Header with title and action buttons */}
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <CardTitle className="text-lg leading-tight line-clamp-2">
+                          {storybook.title}
+                        </CardTitle>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 hover:bg-secondary"
+                                  onClick={() => handleShare(storybook.id)}
+                                >
+                                  <Share2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Copy share link</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => setDeleteId(storybook.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Delete storybook</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </div>
+                      
+                      {/* Audience badge */}
+                      {storybook.audience && (
+                        <div className="mb-2">
+                          <Badge variant="secondary" className="text-xs">
+                            {audienceLabels[storybook.audience]}
+                          </Badge>
+                        </div>
+                      )}
+                      
+                      {/* Metadata */}
+                      <div className="text-sm text-muted-foreground mb-3">
+                        {pageCount > 0 && (
+                          <span>{pageCount} {pageCount === 1 ? 'page' : 'pages'}</span>
+                        )}
+                        {pageCount > 0 && panelCount > 0 && <span className="mx-1">·</span>}
+                        {panelCount > 0 && (
+                          <span>{panelCount} {panelCount === 1 ? 'panel' : 'panels'}</span>
+                        )}
+                        {(pageCount > 0 || panelCount > 0) && <span className="mx-1">·</span>}
+                        <span>Created {formatDate(storybook.created_at)}</span>
+                      </div>
+                      
+                      {/* Action buttons */}
+                      <div className="flex gap-2 mt-auto">
+                        <Button 
+                          size="sm"
+                          onClick={() => router.push(`/storybook/${storybook.id}?autoRead=true`)}
+                        >
+                          <BookOpen className="h-4 w-4 mr-1.5" />
+                          Read
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push(`/storybook/${storybook.id}`)}
+                        >
+                          Details
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Created on {formatDate(storybook.created_at)}
-                  </p>
-                </CardContent>
-                <CardFooter className="flex justify-end">
-                  <Button 
-                    variant="outline"
-                    onClick={() => router.push(`/storybook/${storybook.id}`)}
-                  >
-                    View Storybook
-                    <ChevronRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
 

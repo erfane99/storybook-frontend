@@ -18,6 +18,9 @@ interface Scene {
   hasSpeechBubble?: boolean;
   emotionalWeight?: number;
   isSilent?: boolean;
+  // Visual storytelling properties from worker
+  borderStyle?: 'clean' | 'jagged' | 'wavy' | 'broken' | 'soft' | 'none';
+  transitionType?: 'action_to_action' | 'subject_to_subject' | 'scene_to_scene' | 'moment_to_moment' | 'aspect_to_aspect';
 }
 
 interface Page {
@@ -91,7 +94,14 @@ PageWrapper.displayName = 'PageWrapper';
  */
 export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
   const bookRef = useRef<any>(null);
-  const [currentPage, setCurrentPage] = useState(0);
+  // Load saved reading progress from localStorage
+  const [currentPage, setCurrentPage] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`reading-progress-${storybook.id}`);
+      return saved ? parseInt(saved, 10) : 0;
+    }
+    return 0;
+  });
   const [isFlipping, setIsFlipping] = useState(false);
   const [showNavigation, setShowNavigation] = useState(false);
   const [showHint, setShowHint] = useState(true);
@@ -156,6 +166,27 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
   // Total pages: Cover + Title + Content Pages + End
   const totalPages = 2 + bookPages.length + 1;
 
+  // Save reading progress to localStorage when page changes
+  useEffect(() => {
+    if (storybook.id && currentPage > 0) {
+      localStorage.setItem(`reading-progress-${storybook.id}`, currentPage.toString());
+    }
+  }, [currentPage, storybook.id]);
+
+  // Restore reading position on mount (flip to saved page)
+  useEffect(() => {
+    const savedPage = localStorage.getItem(`reading-progress-${storybook.id}`);
+    if (savedPage && bookRef.current) {
+      const pageNum = parseInt(savedPage, 10);
+      if (pageNum > 0) {
+        // Small delay to ensure book is initialized
+        setTimeout(() => {
+          bookRef.current?.pageFlip()?.turnToPage(pageNum);
+        }, 100);
+      }
+    }
+  }, [storybook.id]);
+
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -188,7 +219,11 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
   // Page flip event handlers
   const onFlip = useCallback((e: any) => {
     setCurrentPage(e.data);
-  }, []);
+    // Haptic feedback on mobile devices
+    if (isMobile && navigator.vibrate) {
+      navigator.vibrate(10); // Short 10ms vibration
+    }
+  }, [isMobile]);
 
   const onChangeState = useCallback((e: any) => {
     setIsFlipping(e.data === 'flipping');
