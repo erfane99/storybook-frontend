@@ -259,14 +259,14 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
       };
     }
     
-    // Desktop: Large book (70% of viewport width, maintain aspect ratio)
-    const maxWidth = Math.floor(window.innerWidth * 0.42);
+    // Desktop: Large book - generous sizing for immersive reading
+    const maxWidth = Math.floor(window.innerWidth * 0.55);  // Increased from 0.42
     const maxHeight = Math.floor(window.innerHeight - 100);
     const aspectRatio = 0.7;
     const widthFromHeight = Math.floor(maxHeight * aspectRatio);
     return {
-      width: Math.min(maxWidth, widthFromHeight, 600),
-      height: Math.min(maxHeight, 850),
+      width: Math.min(maxWidth, widthFromHeight, 800),  // Increased from 600
+      height: Math.min(maxHeight, 950),  // Increased from 850
     };
   };
 

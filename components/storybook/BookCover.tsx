@@ -84,37 +84,52 @@ export function BookCover({ title, coverImage, audience, className }: BookCoverP
         </div>
       )}
 
-      {/* Title and Attribution */}
-      <div className="absolute inset-0 flex flex-col items-center justify-between p-6 md:p-10">
-        {/* Top section - Title */}
-        <div className="flex-1 flex items-center justify-center text-center">
-          <h1 
-            className={cn(
-              style.titleFont,
-              'text-white drop-shadow-lg',
-              'max-w-[90%] leading-tight',
-              style.decoration,
-              'before:mr-2 after:ml-2'
-            )}
-          >
-            {title}
-          </h1>
-        </div>
+      {/* Title and Attribution - Only show when NO cover image (fallback design) */}
+      {!coverImage && (
+        <div className="absolute inset-0 flex flex-col items-center justify-between p-6 md:p-10">
+          {/* Top section - Title */}
+          <div className="flex-1 flex items-center justify-center text-center">
+            <h1 
+              className={cn(
+                style.titleFont,
+                'text-white drop-shadow-lg',
+                'max-w-[90%] leading-tight',
+                style.decoration,
+                'before:mr-2 after:ml-2'
+              )}
+            >
+              {title}
+            </h1>
+          </div>
 
-        {/* Bottom section - Attribution */}
-        <div className="text-center space-y-2">
+          {/* Bottom section - Attribution */}
+          <div className="text-center space-y-2">
+            <div className={cn(
+              'inline-block px-4 py-1 rounded-full',
+              'bg-white/20 backdrop-blur-sm',
+              'text-white/90 text-sm'
+            )}>
+              {audienceLabels[audience]}
+            </div>
+            <p className="text-white/70 text-xs font-medium tracking-wider">
+              A StoryCanvas Creation
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Minimal attribution when cover image exists (title already in image) */}
+      {coverImage && (
+        <div className="absolute bottom-4 left-0 right-0 text-center">
           <div className={cn(
             'inline-block px-4 py-1 rounded-full',
-            'bg-white/20 backdrop-blur-sm',
-            'text-white/90 text-sm'
+            'bg-black/30 backdrop-blur-sm',
+            'text-white/80 text-sm'
           )}>
             {audienceLabels[audience]}
           </div>
-          <p className="text-white/70 text-xs font-medium tracking-wider">
-            A StoryCanvas Creation
-          </p>
         </div>
-      </div>
+      )}
 
       {/* Gloss/sheen effect overlay */}
       <div 
