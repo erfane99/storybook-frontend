@@ -235,17 +235,20 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
 
   // Determine book dimensions based on screen size
   // Books should fill the viewport for immersive reading experience
+  // ROOT CAUSE FIX: Remove hard pixel caps, use pure percentage-based sizing
   const getBookDimensions = () => {
     if (!isClient) {
       return { width: 400, height: 600 };
     }
     
-    const isLandscape = window.innerWidth > window.innerHeight;
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    const isLandscape = screenWidth > screenHeight;
     
     if (isMobile) {
       if (isLandscape) {
         // Mobile Landscape: Optimize for horizontal viewing
-        const maxHeight = Math.floor(window.innerHeight - 80);
+        const maxHeight = Math.floor(screenHeight - 80);
         const aspectRatio = 0.7;
         return {
           width: Math.floor(maxHeight * aspectRatio),
@@ -254,19 +257,25 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
       }
       // Mobile Portrait: Nearly full screen (95% width, account for controls)
       return {
-        width: Math.floor(window.innerWidth * 0.92),
-        height: Math.floor(window.innerHeight - 140),
+        width: Math.floor(screenWidth * 0.92),
+        height: Math.floor(screenHeight - 140),
       };
     }
     
-    // Desktop: Large book - generous sizing for immersive reading
-    const maxWidth = Math.floor(window.innerWidth * 0.55);  // Increased from 0.42
-    const maxHeight = Math.floor(window.innerHeight - 100);
-    const aspectRatio = 0.7;
-    const widthFromHeight = Math.floor(maxHeight * aspectRatio);
+    // Desktop: Fill 80% of viewport for immersive reading
+    // NO PIXEL CAPS - let the book scale with screen size
+    const targetHeight = Math.floor(screenHeight * 0.85); // 85% of screen height
+    const aspectRatio = 0.7; // Book aspect ratio (width/height)
+    const widthFromHeight = Math.floor(targetHeight * aspectRatio);
+    
+    // Ensure width doesn't exceed 45% of screen (leave room for navigation arrows)
+    const maxAllowedWidth = Math.floor(screenWidth * 0.45);
+    const finalWidth = Math.min(widthFromHeight, maxAllowedWidth);
+    const finalHeight = Math.floor(finalWidth / aspectRatio);
+    
     return {
-      width: Math.min(maxWidth, widthFromHeight, 800),  // Increased from 600
-      height: Math.min(maxHeight, 950),  // Increased from 850
+      width: finalWidth,
+      height: finalHeight,
     };
   };
 
@@ -314,9 +323,9 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
           height={dimensions.height}
           size="stretch"
           minWidth={280}
-          maxWidth={700}
+          maxWidth={1200}
           minHeight={400}
-          maxHeight={950}
+          maxHeight={1400}
           showCover={true}
           mobileScrollSupport={true}
           onFlip={onFlip}

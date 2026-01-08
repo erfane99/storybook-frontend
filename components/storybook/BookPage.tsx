@@ -405,7 +405,7 @@ export function BookPage({
               >
                 {/* Panel Image - constrained height with loading state */}
                 <div className={cn(
-                  'flex-1 relative overflow-hidden min-h-0',
+                  'flex-1 relative overflow-hidden min-h-0 bg-gray-100',
                   borderClasses,
                   styles.shadowStyle
                 )}>
@@ -419,7 +419,7 @@ export function BookPage({
                         src={scene.generatedImage}
                         alt={`Panel ${index + 1}`}
                         className={cn(
-                          'absolute inset-0 w-full h-full object-cover',
+                          'absolute inset-0 w-full h-full object-contain',
                           'transition-opacity duration-300',
                           loadedImages.has(index) ? 'opacity-100' : 'opacity-0'
                         )}
