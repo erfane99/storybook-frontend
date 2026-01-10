@@ -131,7 +131,7 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
     
     // Calculate which images to preload based on current page
     const startIndex = currentPage * panelsPerPage;
-    const endIndex = Math.min(startIndex + (panelsPerPage * 3), allScenes.length); // Current + next 2 pages
+    const endIndex = Math.min(startIndex + (panelsPerPage * 3), allScenes.length);
     
     for (let i = startIndex; i < endIndex; i++) {
       const scene = allScenes[i];
@@ -179,7 +179,6 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
     if (savedPage && bookRef.current) {
       const pageNum = parseInt(savedPage, 10);
       if (pageNum > 0) {
-        // Small delay to ensure book is initialized
         setTimeout(() => {
           bookRef.current?.pageFlip()?.turnToPage(pageNum);
         }, 100);
@@ -221,7 +220,7 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
     setCurrentPage(e.data);
     // Haptic feedback on mobile devices
     if (isMobile && navigator.vibrate) {
-      navigator.vibrate(10); // Short 10ms vibration
+      navigator.vibrate(10);
     }
   }, [isMobile]);
 
@@ -231,12 +230,13 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
 
   // Calculate display page number (accounting for cover and title)
   const displayPageNumber = Math.max(1, currentPage - 1);
-  const displayTotalPages = totalPages - 2; // Exclude cover and title from count
+  const displayTotalPages = totalPages - 2;
 
-  // Determine book dimensions based on screen size
-  // Books should fill the viewport for immersive reading experience
-  // ROOT CAUSE FIX: Remove hard pixel caps, use pure percentage-based sizing
-  const getBookDimensions = () => {
+  // ============================================================
+  // BOOK DIMENSIONS - FULLY DYNAMIC, NO PIXEL CAPS
+  // The book should dominate the screen for immersive reading
+  // ============================================================
+  const getBookDimensions = (): { width: number; height: number } => {
     if (!isClient) {
       return { width: 400, height: 600 };
     }
@@ -245,13 +245,17 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
     const screenHeight = window.innerHeight;
     const isLandscape = screenWidth > screenHeight;
     
+    // ===================
+    // MOBILE DEVICES
+    // ===================
     if (isMobile) {
       if (isLandscape) {
-        // Mobile Landscape: Maximize screen usage
-        const maxHeight = Math.floor(screenHeight * 0.88);
-        const openBookAspectRatio = 1.3;
+        // Mobile Landscape: Maximize horizontal space
+        // Use 90% of screen height, calculate width from aspect ratio
+        const maxHeight = Math.floor(screenHeight * 0.90);
+        const openBookAspectRatio = 1.4; // Wider for landscape
         const widthFromHeight = Math.floor(maxHeight * openBookAspectRatio);
-        const maxWidth = Math.floor(screenWidth * 0.92);
+        const maxWidth = Math.floor(screenWidth * 0.95);
         
         if (widthFromHeight > maxWidth) {
           return {
@@ -264,29 +268,32 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
           height: maxHeight,
         };
       }
+      
       // Mobile Portrait: Nearly full screen
+      // 95% width, 82% height (leave room for controls)
       return {
-        width: Math.floor(screenWidth * 0.95),  // 95% width
-        height: Math.floor(screenHeight * 0.85), // 85% height
+        width: Math.floor(screenWidth * 0.95),
+        height: Math.floor(screenHeight * 0.82),
       };
     }
     
-    // Desktop: Prioritize WIDTH for immersive reading experience
-    // Books should feel large and commanding on screen
+    // ===================
+    // DESKTOP - THE KEY FIX
+    // ===================
+    // Strategy: Start from WIDTH (what we want to be large), not height
+    // Target: Book should be 75% of screen width for commanding presence
     
-    // Target: Book should be 70-75% of screen width (open book = 2 pages side by side)
-    const targetWidth = Math.floor(screenWidth * 0.70); // 70% of screen width
+    const targetWidth = Math.floor(screenWidth * 0.75); // 75% of screen width
     
-    // Book aspect ratio: For an open book (2 pages), width > height
-    // Typical open book ratio is around 1.3-1.5 (width/height)
-    // Single page ratio is ~0.7, but we show 2 pages = ~1.4
-    const openBookAspectRatio = 1.3; // width / height for open spread
+    // Open book aspect ratio: width > height (showing 2 pages)
+    // Typical open book is about 1.3-1.4 (width/height)
+    const openBookAspectRatio = 1.35;
     
-    // Calculate height from width
+    // Calculate height from desired width
     const heightFromWidth = Math.floor(targetWidth / openBookAspectRatio);
     
-    // Ensure height doesn't exceed 85% of screen (leave room for controls)
-    const maxAllowedHeight = Math.floor(screenHeight * 0.85);
+    // Ensure height doesn't exceed 88% of screen (leave room for controls)
+    const maxAllowedHeight = Math.floor(screenHeight * 0.88);
     
     // If calculated height is too tall, constrain by height and recalculate width
     if (heightFromWidth > maxAllowedHeight) {
@@ -303,6 +310,7 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
       height: heightFromWidth,
     };
   };
+
   const dimensions = getBookDimensions();
 
   return (
@@ -340,14 +348,14 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
           <ChevronLeft className="h-12 w-12 md:h-8 md:w-8" />
         </Button>
 
-        {/* FlipBook */}
+        {/* FlipBook - NO PIXEL CAPS */}
         <HTMLFlipBook
           ref={bookRef}
           width={dimensions.width}
           height={dimensions.height}
           size="stretch"
           minWidth={280}
-          maxWidth={2000}
+          maxWidth={2400}
           minHeight={400}
           maxHeight={1800}
           showCover={true}
@@ -439,7 +447,6 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
         'flex items-center',
         'bg-black/50 backdrop-blur-sm rounded-full',
         'text-white/90',
-        // Compact on mobile, spacious on desktop
         isMobile ? 'gap-2 px-3 py-2' : 'gap-4 px-6 py-3'
       )}>
         {/* Page Indicator */}
@@ -493,13 +500,10 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
                 if (navigator.share && navigator.canShare?.(shareData)) {
                   await navigator.share(shareData);
                 } else {
-                  // Fallback: copy to clipboard with toast feedback
                   await navigator.clipboard.writeText(window.location.href);
-                  // Note: You'll need to import useToast or pass a toast function as prop
                   alert('Link copied to clipboard!');
                 }
               } catch (err: any) {
-                // User cancelled share or error occurred
                 if (err.name !== 'AbortError') {
                   await navigator.clipboard.writeText(window.location.href);
                   alert('Link copied to clipboard!');
@@ -513,7 +517,7 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
         </div>
       </div>
 
-      {/* Touch/Swipe hints for mobile - shows on first 3 pages, fades after 3 seconds */}
+      {/* Touch/Swipe hints for mobile */}
       {isMobile && currentPage < 3 && (
         <div 
           className={cn(
