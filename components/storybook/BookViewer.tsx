@@ -18,7 +18,6 @@ interface Scene {
   hasSpeechBubble?: boolean;
   emotionalWeight?: number;
   isSilent?: boolean;
-  // Visual storytelling properties from worker
   borderStyle?: 'clean' | 'jagged' | 'wavy' | 'broken' | 'soft' | 'none';
   transitionType?: 'action_to_action' | 'subject_to_subject' | 'scene_to_scene' | 'moment_to_moment' | 'aspect_to_aspect';
 }
@@ -94,7 +93,6 @@ PageWrapper.displayName = 'PageWrapper';
  */
 export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
   const bookRef = useRef<any>(null);
-  // Load saved reading progress from localStorage
   const [currentPage, setCurrentPage] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(`reading-progress-${storybook.id}`);
@@ -106,18 +104,13 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
   const [showNavigation, setShowNavigation] = useState(false);
   const [showHint, setShowHint] = useState(true);
   
-  // Use centralized device detection hook
   const { isMobile, isClient } = useDevice();
-
-  // Get cover image (handle both naming conventions)
   const coverImage = storybook.coverImage || storybook.cover_image;
 
   // Auto-hide swipe hint after 3 seconds
   useEffect(() => {
     if (showHint && currentPage < 3) {
-      const timer = setTimeout(() => {
-        setShowHint(false);
-      }, 3000);
+      const timer = setTimeout(() => setShowHint(false), 3000);
       return () => clearTimeout(timer);
     }
   }, [showHint, currentPage]);
@@ -125,11 +118,8 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
   // Preload next 2 pages for smoother experience
   useEffect(() => {
     if (!isClient) return;
-    
     const allScenes = storybook.pages.flatMap(page => page.scenes);
     const panelsPerPage = getPanelsPerBookPage(storybook.audience);
-    
-    // Calculate which images to preload based on current page
     const startIndex = currentPage * panelsPerPage;
     const endIndex = Math.min(startIndex + (panelsPerPage * 3), allScenes.length);
     
@@ -146,7 +136,6 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
   const panelsPerPage = getPanelsPerBookPage(storybook.audience);
   const bookStyle = audienceBookStyles[storybook.audience] || audienceBookStyles.children;
 
-  // Flatten all scenes from all pages
   const allScenes = storybook.pages.flatMap((page, pageIdx) => 
     page.scenes.map((scene, sceneIdx) => ({
       ...scene,
@@ -155,177 +144,156 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
     }))
   );
 
-  // Group scenes into book pages based on panels per page
   const bookPages: Array<{ scenes: typeof allScenes }> = [];
   for (let i = 0; i < allScenes.length; i += panelsPerPage) {
-    bookPages.push({
-      scenes: allScenes.slice(i, i + panelsPerPage),
-    });
+    bookPages.push({ scenes: allScenes.slice(i, i + panelsPerPage) });
   }
 
-  // Total pages: Cover + Title + Content Pages + End
   const totalPages = 2 + bookPages.length + 1;
 
-  // Save reading progress to localStorage when page changes
+  // Save reading progress
   useEffect(() => {
     if (storybook.id && currentPage > 0) {
       localStorage.setItem(`reading-progress-${storybook.id}`, currentPage.toString());
     }
   }, [currentPage, storybook.id]);
 
-  // Restore reading position on mount (flip to saved page)
+  // Restore reading position
   useEffect(() => {
     const savedPage = localStorage.getItem(`reading-progress-${storybook.id}`);
     if (savedPage && bookRef.current) {
       const pageNum = parseInt(savedPage, 10);
       if (pageNum > 0) {
-        setTimeout(() => {
-          bookRef.current?.pageFlip()?.turnToPage(pageNum);
-        }, 100);
+        setTimeout(() => bookRef.current?.pageFlip()?.turnToPage(pageNum), 100);
       }
     }
   }, [storybook.id]);
 
-  // Handle keyboard navigation
+  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') {
-        handleNextPage();
-      } else if (e.key === 'ArrowLeft') {
-        handlePrevPage();
-      } else if (e.key === 'Escape') {
-        onClose();
-      }
+      if (e.key === 'ArrowRight') handleNextPage();
+      else if (e.key === 'ArrowLeft') handlePrevPage();
+      else if (e.key === 'Escape') onClose();
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  // Navigation handlers
   const handleNextPage = useCallback(() => {
-    if (bookRef.current && !isFlipping) {
-      bookRef.current.pageFlip()?.flipNext();
-    }
+    if (bookRef.current && !isFlipping) bookRef.current.pageFlip()?.flipNext();
   }, [isFlipping]);
 
   const handlePrevPage = useCallback(() => {
-    if (bookRef.current && !isFlipping) {
-      bookRef.current.pageFlip()?.flipPrev();
-    }
+    if (bookRef.current && !isFlipping) bookRef.current.pageFlip()?.flipPrev();
   }, [isFlipping]);
 
-  // Page flip event handlers
   const onFlip = useCallback((e: any) => {
     setCurrentPage(e.data);
-    // Haptic feedback on mobile devices
-    if (isMobile && navigator.vibrate) {
-      navigator.vibrate(10);
-    }
+    if (isMobile && navigator.vibrate) navigator.vibrate(10);
   }, [isMobile]);
 
   const onChangeState = useCallback((e: any) => {
     setIsFlipping(e.data === 'flipping');
   }, []);
 
-  // Calculate display page number (accounting for cover and title)
   const displayPageNumber = Math.max(1, currentPage - 1);
   const displayTotalPages = totalPages - 2;
 
   // ============================================================
-  // BOOK DIMENSIONS - FULLY DYNAMIC, NO PIXEL CAPS
-  // The book should dominate the screen for immersive reading
+  // BOOK DIMENSIONS - THE DEFINITIVE SIZING LOGIC
+  // ============================================================
   // 
-  // CRITICAL: react-pageflip's width/height props are SINGLE PAGE dimensions!
-  // - In portrait mode (usePortrait=true): Shows 1 page, width = page width
-  // - In spread mode (usePortrait=false): Shows 2 pages, total spread = width * 2
-  // 
-  // So for desktop spread mode, we pass HALF the desired spread width.
+  // KEY INSIGHT: react-pageflip width/height = SINGLE PAGE dimensions
+  // - usePortrait={true} (mobile): Shows 1 page, width = displayed width
+  // - usePortrait={false} (desktop): Shows 2 pages, spread = width × 2
+  //
+  // THEREFORE: For desktop, we pass HALF the desired spread width
   // ============================================================
   const getBookDimensions = (): { width: number; height: number } => {
     if (!isClient) {
-      return { width: 400, height: 600 };
+      return { width: 500, height: 700 };
     }
     
     const screenWidth = window.innerWidth;
     const screenHeight = window.innerHeight;
-    const isLandscape = screenWidth > screenHeight;
     
     // ===================
-    // MOBILE DEVICES (Portrait Mode - Single Page)
-    // usePortrait={true} means width = actual page width displayed
+    // MOBILE (Portrait Mode - Single Page View)
     // ===================
     if (isMobile) {
+      const isLandscape = screenWidth > screenHeight;
+      
       if (isLandscape) {
-        // Mobile Landscape: Single page, maximize space
-        // Use 90% of screen height, calculate width from single page aspect ratio
-        const maxHeight = Math.floor(screenHeight * 0.90);
-        const singlePageAspectRatio = 0.75; // Taller than wide (portrait page)
-        const widthFromHeight = Math.floor(maxHeight * singlePageAspectRatio);
-        const maxWidth = Math.floor(screenWidth * 0.60); // Don't exceed 60% in landscape
+        // Mobile Landscape: Maximize height, calculate width
+        const targetHeight = Math.floor(screenHeight * 0.88);
+        const singlePageRatio = 0.75; // width/height for single page
+        const targetWidth = Math.floor(targetHeight * singlePageRatio);
+        const maxWidth = Math.floor(screenWidth * 0.55);
         
-        if (widthFromHeight > maxWidth) {
+        if (targetWidth > maxWidth) {
           return {
             width: maxWidth,
-            height: Math.floor(maxWidth / singlePageAspectRatio),
+            height: Math.floor(maxWidth / singlePageRatio),
           };
         }
-        return {
-          width: widthFromHeight,
-          height: maxHeight,
-        };
+        return { width: targetWidth, height: targetHeight };
       }
       
-      // Mobile Portrait: Single page, nearly full screen
-      // 95% width, 82% height (leave room for controls)
+      // Mobile Portrait: Nearly full screen
       return {
-        width: Math.floor(screenWidth * 0.95),
-        height: Math.floor(screenHeight * 0.82),
+        width: Math.floor(screenWidth * 0.94),
+        height: Math.floor(screenHeight * 0.80),
       };
     }
     
     // ===================
     // DESKTOP (Spread Mode - Two Pages Side by Side)
-    // usePortrait={false} means the book shows 2 pages
-    // Total spread width = width prop * 2
-    // So we pass HALF the desired spread width
     // ===================
+    // Target: Open spread should be ~85% of screen width
+    // We pass SINGLE PAGE width (half of spread)
     
-    // Target: Open book spread should be ~78% of screen width
-    // For 1920px screen: spread = 1498px (target: 1400-1500px)
-    const targetSpreadWidth = Math.floor(screenWidth * 0.78);
-    
-    // Single page width = half of spread (this is what we pass to the component)
+    const targetSpreadWidth = Math.floor(screenWidth * 0.85);
     const singlePageWidth = Math.floor(targetSpreadWidth / 2);
     
-    // Single page aspect ratio: width/height
-    // For target 1450px spread × 850px height:
-    // Single page = 725px × 850px = 0.85 aspect ratio
-    const singlePageAspectRatio = 0.85;
+    // Single page aspect ratio (width/height) - typical book page is taller than wide
+    // For a nice looking spread: each page ~0.75 ratio
+    const singlePageRatio = 0.75;
     
     // Calculate height from single page width
-    const pageHeight = Math.floor(singlePageWidth / singlePageAspectRatio);
+    const calculatedHeight = Math.floor(singlePageWidth / singlePageRatio);
     
-    // Ensure height doesn't exceed 82% of screen (target: 800-900px for 1080p)
-    const maxAllowedHeight = Math.floor(screenHeight * 0.82);
+    // Cap height at 88% of screen to leave room for controls
+    const maxHeight = Math.floor(screenHeight * 0.88);
     
-    // If calculated height is too tall, constrain by height and recalculate width
-    if (pageHeight > maxAllowedHeight) {
-      const finalHeight = maxAllowedHeight;
-      const finalSinglePageWidth = Math.floor(finalHeight * singlePageAspectRatio);
+    if (calculatedHeight > maxHeight) {
+      // Height-constrained: recalculate width from max height
+      const constrainedPageWidth = Math.floor(maxHeight * singlePageRatio);
       return {
-        width: finalSinglePageWidth,
-        height: finalHeight,
+        width: constrainedPageWidth,
+        height: maxHeight,
       };
     }
     
     return {
       width: singlePageWidth,
-      height: pageHeight,
+      height: calculatedHeight,
     };
   };
 
   const dimensions = getBookDimensions();
+
+  // Debug log (remove in production)
+  useEffect(() => {
+    if (isClient) {
+      console.log('📖 BookViewer Dimensions:', {
+        screen: `${window.innerWidth}×${window.innerHeight}`,
+        singlePage: `${dimensions.width}×${dimensions.height}`,
+        spread: `${dimensions.width * 2}×${dimensions.height}`,
+        isMobile,
+      });
+    }
+  }, [dimensions, isMobile, isClient]);
 
   return (
     <div 
@@ -350,7 +318,7 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
           variant="ghost"
           size="icon"
           className={cn(
-            'absolute left-4 md:-left-16 z-40',
+            'absolute left-4 md:-left-20 z-40',
             'text-white/70 hover:text-white hover:bg-white/10',
             'transition-opacity duration-300',
             showNavigation || isMobile ? 'opacity-100' : 'opacity-0',
@@ -359,33 +327,38 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
           onClick={handlePrevPage}
           disabled={isFlipping || currentPage === 0}
         >
-          <ChevronLeft className="h-12 w-12 md:h-8 md:w-8" />
+          <ChevronLeft className="h-12 w-12 md:h-10 md:w-10" />
         </Button>
 
-        {/* FlipBook - NO PIXEL CAPS */}
+        {/* ============================================================
+            HTMLFlipBook - CRITICAL PROPS FOR SIZING
+            ============================================================
+            - width/height: Single page dimensions (spread = width × 2)
+            - size="stretch": Allows responsive scaling
+            - minWidth/maxWidth: MUST be large enough to not constrain!
+            - usePortrait: true for mobile (1 page), false for desktop (2 pages)
+            ============================================================ */}
         <HTMLFlipBook
           ref={bookRef}
           width={dimensions.width}
           height={dimensions.height}
           size="stretch"
-          minWidth={280}
-          maxWidth={2400}
-          minHeight={400}
-          maxHeight={1800}
+          minWidth={200}
+          maxWidth={1500}
+          minHeight={300}
+          maxHeight={1200}
           showCover={true}
           mobileScrollSupport={true}
           onFlip={onFlip}
           onChangeState={onChangeState}
           className="shadow-2xl"
-          style={{
-            boxShadow: `0 25px 50px -12px ${bookStyle.shadowColor}`,
-          }}
+          style={{ boxShadow: `0 25px 50px -12px ${bookStyle.shadowColor}` }}
           startPage={0}
           drawShadow={true}
           flippingTime={bookStyle.animationDuration}
           usePortrait={isMobile}
           startZIndex={0}
-          autoSize={true}
+          autoSize={false}
           maxShadowOpacity={0.5}
           showPageCorners={true}
           disableFlipByClick={false}
@@ -442,7 +415,7 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
           variant="ghost"
           size="icon"
           className={cn(
-            'absolute right-4 md:-right-16 z-40',
+            'absolute right-4 md:-right-20 z-40',
             'text-white/70 hover:text-white hover:bg-white/10',
             'transition-opacity duration-300',
             showNavigation || isMobile ? 'opacity-100' : 'opacity-0',
@@ -451,7 +424,7 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
           onClick={handleNextPage}
           disabled={isFlipping || currentPage >= totalPages - 1}
         >
-          <ChevronRight className="h-12 w-12 md:h-8 md:w-8" />
+          <ChevronRight className="h-12 w-12 md:h-10 md:w-10" />
         </Button>
       </div>
 
@@ -463,21 +436,15 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
         'text-white/90',
         isMobile ? 'gap-2 px-3 py-2' : 'gap-4 px-6 py-3'
       )}>
-        {/* Page Indicator */}
-        <span className={cn(
-          'font-medium',
-          isMobile ? 'text-xs' : 'text-sm'
-        )}>
+        <span className={cn('font-medium', isMobile ? 'text-xs' : 'text-sm')}>
           {currentPage === 0 ? 'Cover' : 
            currentPage === 1 ? 'Title' :
            currentPage >= totalPages - 1 ? 'The End' :
            `Page ${displayPageNumber} of ${displayTotalPages}`}
         </span>
 
-        {/* Divider */}
         <div className="w-px h-4 bg-white/30" />
 
-        {/* Action Buttons */}
         <div className="flex items-center gap-1">
           {onRate && (
             <Button
@@ -487,10 +454,7 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
                 'text-white/80 hover:text-white hover:bg-white/10',
                 isMobile && 'px-2 py-1 h-7 text-xs'
               )}
-              onClick={() => {
-                onClose();
-                onRate();
-              }}
+              onClick={() => { onClose(); onRate(); }}
             >
               <Star className={cn('mr-1', isMobile ? 'h-3 w-3' : 'h-4 w-4')} />
               Rate
@@ -509,7 +473,6 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
                 text: `Check out "${storybook.title}" - A StoryCanvas Creation`,
                 url: window.location.href,
               };
-              
               try {
                 if (navigator.share && navigator.canShare?.(shareData)) {
                   await navigator.share(shareData);
@@ -531,15 +494,13 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
         </div>
       </div>
 
-      {/* Touch/Swipe hints for mobile */}
+      {/* Mobile swipe hint */}
       {isMobile && currentPage < 3 && (
-        <div 
-          className={cn(
-            'absolute bottom-24 left-1/2 -translate-x-1/2 text-white/60 text-sm',
-            'transition-opacity duration-500',
-            showHint ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          )}
-        >
+        <div className={cn(
+          'absolute bottom-24 left-1/2 -translate-x-1/2 text-white/60 text-sm',
+          'transition-opacity duration-500',
+          showHint ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        )}>
           Swipe or tap edges to turn pages
         </div>
       )}
