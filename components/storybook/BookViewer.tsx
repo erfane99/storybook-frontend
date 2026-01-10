@@ -247,38 +247,62 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
     
     if (isMobile) {
       if (isLandscape) {
-        // Mobile Landscape: Optimize for horizontal viewing
-        const maxHeight = Math.floor(screenHeight - 80);
-        const aspectRatio = 0.7;
+        // Mobile Landscape: Maximize screen usage
+        const maxHeight = Math.floor(screenHeight * 0.88);
+        const openBookAspectRatio = 1.3;
+        const widthFromHeight = Math.floor(maxHeight * openBookAspectRatio);
+        const maxWidth = Math.floor(screenWidth * 0.92);
+        
+        if (widthFromHeight > maxWidth) {
+          return {
+            width: maxWidth,
+            height: Math.floor(maxWidth / openBookAspectRatio),
+          };
+        }
         return {
-          width: Math.floor(maxHeight * aspectRatio),
+          width: widthFromHeight,
           height: maxHeight,
         };
       }
-      // Mobile Portrait: Nearly full screen (95% width, account for controls)
+      // Mobile Portrait: Nearly full screen
       return {
-        width: Math.floor(screenWidth * 0.92),
-        height: Math.floor(screenHeight - 140),
+        width: Math.floor(screenWidth * 0.95),  // 95% width
+        height: Math.floor(screenHeight * 0.85), // 85% height
       };
     }
     
-    // Desktop: Fill 80% of viewport for immersive reading
-    // NO PIXEL CAPS - let the book scale with screen size
-    const targetHeight = Math.floor(screenHeight * 0.85); // 85% of screen height
-    const aspectRatio = 0.7; // Book aspect ratio (width/height)
-    const widthFromHeight = Math.floor(targetHeight * aspectRatio);
+    // Desktop: Prioritize WIDTH for immersive reading experience
+    // Books should feel large and commanding on screen
     
-    // Ensure width doesn't exceed 45% of screen (leave room for navigation arrows)
-    const maxAllowedWidth = Math.floor(screenWidth * 0.45);
-    const finalWidth = Math.min(widthFromHeight, maxAllowedWidth);
-    const finalHeight = Math.floor(finalWidth / aspectRatio);
+    // Target: Book should be 70-75% of screen width (open book = 2 pages side by side)
+    const targetWidth = Math.floor(screenWidth * 0.70); // 70% of screen width
+    
+    // Book aspect ratio: For an open book (2 pages), width > height
+    // Typical open book ratio is around 1.3-1.5 (width/height)
+    // Single page ratio is ~0.7, but we show 2 pages = ~1.4
+    const openBookAspectRatio = 1.3; // width / height for open spread
+    
+    // Calculate height from width
+    const heightFromWidth = Math.floor(targetWidth / openBookAspectRatio);
+    
+    // Ensure height doesn't exceed 85% of screen (leave room for controls)
+    const maxAllowedHeight = Math.floor(screenHeight * 0.85);
+    
+    // If calculated height is too tall, constrain by height and recalculate width
+    if (heightFromWidth > maxAllowedHeight) {
+      const finalHeight = maxAllowedHeight;
+      const finalWidth = Math.floor(finalHeight * openBookAspectRatio);
+      return {
+        width: finalWidth,
+        height: finalHeight,
+      };
+    }
     
     return {
-      width: finalWidth,
-      height: finalHeight,
+      width: targetWidth,
+      height: heightFromWidth,
     };
   };
-
   const dimensions = getBookDimensions();
 
   return (
@@ -323,9 +347,9 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
           height={dimensions.height}
           size="stretch"
           minWidth={280}
-          maxWidth={1200}
+          maxWidth={2000}
           minHeight={400}
-          maxHeight={1400}
+          maxHeight={1800}
           showCover={true}
           mobileScrollSupport={true}
           onFlip={onFlip}
