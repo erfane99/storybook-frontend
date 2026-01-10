@@ -235,6 +235,12 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
   // ============================================================
   // BOOK DIMENSIONS - FULLY DYNAMIC, NO PIXEL CAPS
   // The book should dominate the screen for immersive reading
+  // 
+  // CRITICAL: react-pageflip's width/height props are SINGLE PAGE dimensions!
+  // - In portrait mode (usePortrait=true): Shows 1 page, width = page width
+  // - In spread mode (usePortrait=false): Shows 2 pages, total spread = width * 2
+  // 
+  // So for desktop spread mode, we pass HALF the desired spread width.
   // ============================================================
   const getBookDimensions = (): { width: number; height: number } => {
     if (!isClient) {
@@ -246,21 +252,22 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
     const isLandscape = screenWidth > screenHeight;
     
     // ===================
-    // MOBILE DEVICES
+    // MOBILE DEVICES (Portrait Mode - Single Page)
+    // usePortrait={true} means width = actual page width displayed
     // ===================
     if (isMobile) {
       if (isLandscape) {
-        // Mobile Landscape: Maximize horizontal space
-        // Use 90% of screen height, calculate width from aspect ratio
+        // Mobile Landscape: Single page, maximize space
+        // Use 90% of screen height, calculate width from single page aspect ratio
         const maxHeight = Math.floor(screenHeight * 0.90);
-        const openBookAspectRatio = 1.4; // Wider for landscape
-        const widthFromHeight = Math.floor(maxHeight * openBookAspectRatio);
-        const maxWidth = Math.floor(screenWidth * 0.95);
+        const singlePageAspectRatio = 0.75; // Taller than wide (portrait page)
+        const widthFromHeight = Math.floor(maxHeight * singlePageAspectRatio);
+        const maxWidth = Math.floor(screenWidth * 0.60); // Don't exceed 60% in landscape
         
         if (widthFromHeight > maxWidth) {
           return {
             width: maxWidth,
-            height: Math.floor(maxWidth / openBookAspectRatio),
+            height: Math.floor(maxWidth / singlePageAspectRatio),
           };
         }
         return {
@@ -269,7 +276,7 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
         };
       }
       
-      // Mobile Portrait: Nearly full screen
+      // Mobile Portrait: Single page, nearly full screen
       // 95% width, 82% height (leave room for controls)
       return {
         width: Math.floor(screenWidth * 0.95),
@@ -278,36 +285,43 @@ export function BookViewer({ storybook, onClose, onRate }: BookViewerProps) {
     }
     
     // ===================
-    // DESKTOP - THE KEY FIX
+    // DESKTOP (Spread Mode - Two Pages Side by Side)
+    // usePortrait={false} means the book shows 2 pages
+    // Total spread width = width prop * 2
+    // So we pass HALF the desired spread width
     // ===================
-    // Strategy: Start from WIDTH (what we want to be large), not height
-    // Target: Book should be 75% of screen width for commanding presence
     
-    const targetWidth = Math.floor(screenWidth * 0.75); // 75% of screen width
+    // Target: Open book spread should be ~78% of screen width
+    // For 1920px screen: spread = 1498px (target: 1400-1500px)
+    const targetSpreadWidth = Math.floor(screenWidth * 0.78);
     
-    // Open book aspect ratio: width > height (showing 2 pages)
-    // Typical open book is about 1.3-1.4 (width/height)
-    const openBookAspectRatio = 1.35;
+    // Single page width = half of spread (this is what we pass to the component)
+    const singlePageWidth = Math.floor(targetSpreadWidth / 2);
     
-    // Calculate height from desired width
-    const heightFromWidth = Math.floor(targetWidth / openBookAspectRatio);
+    // Single page aspect ratio: width/height
+    // For target 1450px spread × 850px height:
+    // Single page = 725px × 850px = 0.85 aspect ratio
+    const singlePageAspectRatio = 0.85;
     
-    // Ensure height doesn't exceed 88% of screen (leave room for controls)
-    const maxAllowedHeight = Math.floor(screenHeight * 0.88);
+    // Calculate height from single page width
+    const pageHeight = Math.floor(singlePageWidth / singlePageAspectRatio);
+    
+    // Ensure height doesn't exceed 82% of screen (target: 800-900px for 1080p)
+    const maxAllowedHeight = Math.floor(screenHeight * 0.82);
     
     // If calculated height is too tall, constrain by height and recalculate width
-    if (heightFromWidth > maxAllowedHeight) {
+    if (pageHeight > maxAllowedHeight) {
       const finalHeight = maxAllowedHeight;
-      const finalWidth = Math.floor(finalHeight * openBookAspectRatio);
+      const finalSinglePageWidth = Math.floor(finalHeight * singlePageAspectRatio);
       return {
-        width: finalWidth,
+        width: finalSinglePageWidth,
         height: finalHeight,
       };
     }
     
     return {
-      width: targetWidth,
-      height: heightFromWidth,
+      width: singlePageWidth,
+      height: pageHeight,
     };
   };
 
