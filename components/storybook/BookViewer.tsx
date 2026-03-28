@@ -45,10 +45,10 @@ interface BookViewerProps {
 
 const getPanelsPerBookPage = (audience: string): number => {
   switch (audience) {
-    case 'children': return 2;
-    case 'young_adults': return 3;
+    case 'children': return 4;
+    case 'young_adults': return 4;
     case 'adults': return 4;
-    default: return 2;
+    default: return 4;
   }
 };
 

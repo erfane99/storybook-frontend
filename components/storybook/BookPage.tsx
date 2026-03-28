@@ -46,10 +46,10 @@ interface BookPageProps {
 // Calculate panels per page based on audience
 const getPanelsPerPage = (audience: string): number => {
   switch (audience) {
-    case 'children': return 2;
-    case 'young_adults': return 3;
+    case 'children': return 4;
+    case 'young_adults': return 4;
     case 'adults': return 4;
-    default: return 2;
+    default: return 4;
   }
 };
 
@@ -102,14 +102,14 @@ const getBorderStyleClasses = (
   
   switch (borderStyle) {
     case 'jagged':
-      // Jagged = action/danger - use sharper corners, thicker border
-      return 'border-4 border-red-400/70 rounded-sm shadow-lg';
+      // Jagged = action/danger — neutral border; sharp corners convey intensity
+      return 'border-[3px] border-gray-600 rounded-sm shadow-lg';
     case 'wavy':
       // Wavy = dreams/memories - soft, ethereal
       return 'border-2 border-purple-300/60 rounded-3xl shadow-inner';
     case 'broken':
-      // Broken = impact moments - dashed/interrupted
-      return 'border-4 border-dashed border-orange-400/80 rounded-lg';
+      // Broken = impact — dashed pattern without clashing color
+      return 'border-[3px] border-dashed border-gray-500 rounded-lg shadow-md';
     case 'soft':
       // Soft = flashbacks - faded edges
       return 'border border-gray-300/50 rounded-2xl opacity-95';
@@ -326,27 +326,32 @@ export function BookPage({
      * - Medium weight (5-7): Standard panel size
      * - Low weight (1-4): Smaller panels for transitions
      */
-    const calculateDynamicPanelWeights = (): number[] => {
+    const calculateDynamicPanelWeights = (
+      aud: BookPageProps['audience']
+    ): number[] => {
       if (sceneCount === 0) return [];
       if (sceneCount === 1) return [1]; // Single panel gets full space
       
       // Get emotional weights, defaulting to 5 (medium) if not provided
       const weights = scenes.map(scene => scene.emotionalWeight ?? 5);
       
-      // Normalize weights to create proportional flex values
-      // Map weight 1-10 to flex multiplier 0.6-1.4 (40% variation range)
-      // This ensures panels are noticeably different but not extreme
+      // Audience-tuned Spiegelman flex range (emotionalWeight 1–10 → flex min–max)
       const flexValues = weights.map(weight => {
-        // Clamp weight between 1-10
         const clampedWeight = Math.max(1, Math.min(10, weight));
-        // Map to flex range: weight 1 = 0.6x, weight 5 = 1.0x, weight 10 = 1.4x
-        return 0.6 + (clampedWeight - 1) * (0.8 / 9);
+        const t = clampedWeight - 1;
+        if (aud === 'children') {
+          return 0.6 + t * (1.0 / 9); // 0.6–1.6 (~2.7×)
+        }
+        if (aud === 'young_adults') {
+          return 0.5 + t * (1.3 / 9); // 0.5–1.8 (~3.6×)
+        }
+        return 0.4 + t * (1.6 / 9); // 0.4–2.0 (5×)
       });
       
       return flexValues;
     };
     
-    const panelFlexValues = calculateDynamicPanelWeights();
+    const panelFlexValues = calculateDynamicPanelWeights(audience);
     
     // Calculate base height percentage (accounting for gaps and page number)
     const getBaseHeightPercent = (): number => {
@@ -434,15 +439,21 @@ export function BookPage({
                   )}
                 </div>
 
-                {/* Narration Caption - constrained with ellipsis for overflow */}
+                {/* Narration Caption — audience-tuned height and line clamp */}
                 {scene.narration && !scene.isSilent && (
                   <div className={cn(
                     styles.narrationBox,
-                    'mt-1 flex-shrink-0 max-h-16 overflow-hidden'
+                    'mt-1 flex-shrink-0',
+                    audience === 'children' && 'max-h-12',
+                    audience === 'young_adults' && 'max-h-20',
+                    audience === 'adults' && 'max-h-24'
                   )}>
                     <p className={cn(
                       styles.narrationText,
-                      'text-center line-clamp-2'
+                      'text-center',
+                      audience === 'children' && 'line-clamp-2',
+                      audience === 'young_adults' && 'line-clamp-3',
+                      audience === 'adults' && 'line-clamp-4'
                     )}>
                       {scene.narration}
                     </p>
