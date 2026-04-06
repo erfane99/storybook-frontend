@@ -250,17 +250,6 @@ export function BookPage({
           </p>
         )}
 
-        {/* Audience Badge */}
-        <div className={cn(
-          'px-6 py-2 rounded-full',
-          'bg-primary/10 text-primary',
-          'text-sm font-medium'
-        )}>
-          {audience === 'children' ? '📚 For Children' : 
-           audience === 'young_adults' ? '📖 For Young Adults' : 
-           '📕 For Adults'}
-        </div>
-
         {/* Decorative line bottom */}
         <div className="w-24 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent mt-8" />
       </div>
@@ -424,7 +413,7 @@ export function BookPage({
                         src={scene.generatedImage}
                         alt={`Panel ${index + 1}`}
                         className={cn(
-                          'absolute inset-0 w-full h-full object-contain',
+                          'absolute inset-0 w-full h-full object-cover',
                           'transition-opacity duration-300',
                           loadedImages.has(index) ? 'opacity-100' : 'opacity-0'
                         )}
